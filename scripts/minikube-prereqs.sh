@@ -8,7 +8,7 @@ echo "=== Make sure minikube is running for profile: $PROFILE ==="
 minikube status -p "$PROFILE" || (echo "minikube not running for profile $PROFILE; run 'minikube start -p $PROFILE' and try again" && exit 1)
 
 # Pre-pull base node image on host and load into minikube to avoid DockerHub DNS errors
-BASE_IMAGE=node:18-bullseye-slim
+BASE_IMAGE=node:20-alpine
 
 echo "=== Pulling base image $BASE_IMAGE on host ==="
 docker pull "$BASE_IMAGE"

@@ -16,8 +16,8 @@ minikube start -p cloud-run-dev-internal
 2. Preload the Node base image into minikube to avoid `index.docker.io` DNS failures:
 
 ```bash
-docker pull node:18-bullseye-slim
-minikube image load node:18-bullseye-slim -p cloud-run-dev-internal
+docker pull node:20-alpine
+minikube image load node:20-alpine -p cloud-run-dev-internal
 ```
 
 Alternatively run the included script:
