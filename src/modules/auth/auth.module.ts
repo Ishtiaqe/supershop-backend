@@ -13,10 +13,17 @@ import { RolesGuard } from './guards/roles.guard';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
+        // Provide sensible defaults so missing envs don't crash runtime
         secret: configService.get('JWT_SECRET'),
-        signOptions: {
-          expiresIn: configService.get('JWT_EXPIRES_IN'),
-        },
+        signOptions: (() => {
+          const exp = configService.get<string>('JWT_EXPIRES_IN');
+          // Only include expiresIn if defined and valid-looking; otherwise let jwt default
+          if (exp && typeof exp === 'string' && exp.trim().length > 0) {
+            return { expiresIn: exp };
+          }
+          // Default short-lived access token
+          return { expiresIn: '15m' };
+        })(),
       }),
       inject: [ConfigService],
     }),

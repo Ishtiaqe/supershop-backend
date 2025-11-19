@@ -3,7 +3,8 @@ kind: Config
 metadata:
   name: supershop-backend
 build:
-  googleCloudBuild: {}
+  local:
+    push: true
   artifacts:
     - image: gcr.io/shomaj-817b0/supershop-backend
       context: .
