@@ -1,7 +1,8 @@
-# Cloud Run Hello World with Cloud Code
+# SuperShop Backend (VS Code helper README)
 
+This repository contains the NestJS backend — Cloud Run sample content has been removed.
 
-This "Hello World" sample demonstrates how to deploy a simple "Hello World" application to Cloud Run using the Cloud Code extension for Visual Studio Code.
+Use VS Code or your preferred IDE to run the app locally; the top-level `README.md` contains full run and Docker instructions. Cloud Code specific documentation is removed to avoid confusion.
 
 ### Table of Contents
 * [Getting Started](#getting-started)
@@ -13,32 +14,30 @@ This "Hello World" sample demonstrates how to deploy a simple "Hello World" appl
 ---
 ## Getting Started
 
-### Run the app locally with the Cloud Run Emulator
-1. In the Cloud Code status bar, click on the active project name and select 'Run on Cloud Run Emulator'.  
-![image](../../img/status-bar.png)
+### Run the app locally
 
-2. Use the Cloud Run Emulator dialog to specify your [builder option](https://cloud.google.com/code/docs/vscode/deploying-a-cloud-run-app#deploying_a_cloud_run_service?utm_source=ext&utm_medium=partner&utm_campaign=CDR_kri_gcp_cloudcodereadmes_012521&utm_content=-). Cloud Code supports Docker, Jib, and Buildpacks. See the skaffold documentation on [builders](https://skaffold.dev/docs/builders/) for more information about build artifact types.  
-![image](../../img/build-config.png)
+1. Install dependencies:
 
-3. Click ‘Run’. Cloud Code begins building your image.
+```bash
+npm install
+```
 
-4. View the build progress in the OUTPUT window. Once the build has finished, click on the URL in the OUTPUT window to view your live application.  
-![image](../../img/cloud-run-url.png)
+2. Run in development mode (hot reload):
 
-5. To stop the application, click the stop icon on the Debug Toolbar.
+```bash
+npm run start:dev
+```
+
+3. Build and start production server:
+
+```bash
+npm run build
+npm run start:prod
+```
 
 ### Deploy to Cloud Run
 
-1. Select 'Deploy to Cloud Run' using the Cloud Code status bar.
-
-2. If prompted, login to your Google Cloud account and set your project.
-
-3. Use the Deploy to Cloud Run dialog to configure your deploy settings. For more information on the configuration options available, see [Deploying a Cloud Run app](https://cloud.google.com/code/docs/vscode/deploying-a-cloud-run-app?utm_source=ext&utm_medium=partner&utm_campaign=CDR_kri_gcp_cloudcodereadmes_012521&utm_content=-).  
-
-4. Click 'Deploy'. Cloud Code now builds your image, pushes it to the container registry, and deploys your service to Cloud Run.
-
-5. View your live service by clicking on the URL displayed at the top of the 'Deploy to Cloud Run' dialog.  
-![image](../../img/cloud-run-deployed-url.png)
+This repo no longer serves the Cloud Run hello-world page. The NestJS server is the default run target; use the Cloud Run/Cloud Code workflow as usual but point your service to the built `dist/` server and the port specified by `PORT`.
 
 ---
 ## Next steps

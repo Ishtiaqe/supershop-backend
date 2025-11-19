@@ -1,58 +1,74 @@
-# Cloud Run Hello World with Cloud Code
+# SuperShop Backend
 
-"Hello World" is a [Cloud Run](https://cloud.google.com/run/docs) application that renders a simple webpage.
+This repository contains the backend API for the SuperShop multi-tenant shop management system. The codebase uses NestJS, Prisma, and PostgreSQL. The `src/` directory holds the application code and `dist/` contains production builds.
 
-For details on how to use this sample as a template in Cloud Code, read the documentation for Cloud Code for [VS Code](https://cloud.google.com/code/docs/vscode/quickstart-cloud-run?utm_source=ext&utm_medium=partner&utm_campaign=CDR_kri_gcp_cloudcodereadmes_012521&utm_content=-) or [IntelliJ](https://cloud.google.com/code/docs/intellij/quickstart-cloud-run?utm_source=ext&utm_medium=partner&utm_campaign=CDR_kri_gcp_cloudcodereadmes_012521&utm_content=-).
+## Quick start
+### Cloud Run (local & Cloud Code)
 
-### Table of Contents
-* [Getting Started with VS Code](#getting-started-with-vs-code)
-* [Getting Started with IntelliJ](#getting-started-with-intellij)
-* [Sign up for User Research](#sign-up-for-user-research)
+This repository is intended to run on Google Cloud Run in production. If you use Cloud Code to run/debug locally (Cloud Run emulator with minikube), follow these steps. The most common error is minikube's inability to pull base images from Docker Hub (DNS issues when minikube behind a firewall or systemd-resolved). See troubleshooting steps below.
 
----
-## Getting Started with VS Code
+1. Start `minikube` (Cloud Code will start a profile named `cloud-run-dev-internal` automatically). You can also run it manually:
 
-### Run the app locally with the Cloud Run Emulator
-1. In the Cloud Code status bar, click on the active project name and select 'Run on Cloud Run Emulator'.  
-![image](./img/status-bar.png)
+```bash
+minikube start -p cloud-run-dev-internal
+```
 
-2. Use the Cloud Run Emulator dialog to specify your [builder option](https://cloud.google.com/code/docs/vscode/deploying-a-cloud-run-app#deploying_a_cloud_run_service). Cloud Code supports Docker, Jib, and Buildpacks. See the skaffold documentation on [builders](https://skaffold.dev/docs/builders/) for more information about build artifact types.  
-![image](./img/build-config.png)
+2. Preload the Node base image into minikube to avoid `index.docker.io` DNS failures:
 
-3. Click ‘Run’. Cloud Code begins building your image.
+```bash
+docker pull node:18-bullseye-slim
+minikube image load node:18-bullseye-slim -p cloud-run-dev-internal
+```
 
-4. View the build progress in the OUTPUT window. Once the build has finished, click on the URL in the OUTPUT window to view your live application.  
-![image](./img/cloud-run-url.png)
+Alternatively run the included script:
 
-5. To stop the application, click the stop icon on the Debug Toolbar.
+```bash
+chmod +x scripts/minikube-prereqs.sh
+scripts/minikube-prereqs.sh
+```
 
----
-## Getting Started with IntelliJ
+3. Ensure Cloud Run local has the correct container port defined (`8080` by default). Confirm `containerPort` is set to `8080` in `.vscode/launch.json`.
 
-### Run the app locally with the Cloud Run Emulator
+4. Start Cloud Run from Cloud Code in VS Code: run **Cloud Run: Run/Debug Locally** from the Run panel or the command palette.
 
-#### Define run configuration
+Troubleshooting DNS/pulling errors
+- If Skaffold or minikube fail with "dial tcp: lookup index.docker.io on 127.0.0.53:53: server misbehaving", it is an environment DNS issue. The script above will prevent Docker from attempting to re-pull the base image in minikube.
+- If you still have DNS errors, try `minikube ssh -- sudo systemctl restart systemd-resolved` or adjust your host DNS settings.
+- If your network restricts access to docker hub, configure a mirror or use a private registry.
 
-1. Click the Run/Debug configurations dropdown on the top taskbar and select 'Edit Configurations'.  
-![image](./img/edit-config.png)
+1. Install dependencies:
 
-2. Select 'Cloud Run: Run Locally' and specify your [builder option](https://cloud.google.com/code/docs/intellij/developing-a-cloud-run-app#defining_your_run_configuration). Cloud Code supports Docker, Jib, and Buildpacks. See the skaffold documentation on [builders](https://skaffold.dev/docs/builders/) for more information about build artifact types.  
-![image](./img/local-build-config.png)
+```bash
+npm install
+```
 
-#### Run the application
-1. Click the Run/Debug configurations dropdown and select 'Cloud Run: Run Locally'. Click the run icon.  
-![image](./img/config-run-locally.png)
+2. Run in development mode (hot reload):
 
-2. View the build process in the output window. Once the build has finished, you will receive a notification from the Event Log. Click 'View' to access the local URLs for your deployed services.  
-![image](./img/local-success.png)
+```bash
+npm run start:dev
+```
 
----
-## Sign up for User Research
+3. Build for production and run (local):
 
-We want to hear your feedback!
+```bash
+npm run build
+npm run start:prod
+```
 
-The Cloud Code team is inviting our user community to sign-up to participate in Google User Experience Research. 
+## Docker (production-like)
 
-If you’re invited to join a study, you may try out a new product or tell us what you think about the products you use every day. At this time, Google is only sending invitations for upcoming remote studies. Once a study is complete, you’ll receive a token of thanks for your participation such as a gift card or some Google swag. 
+```bash
+docker build -t supershop-backend .
+docker run -p 8080:8080 --env-file .env -it supershop-backend
+```
 
-[Sign up using this link](https://google.qualtrics.com/jfe/form/SV_4Me7SiMewdvVYhL?reserved=1&utm_source=In-product&Q_Language=en&utm_medium=own_prd&utm_campaign=Q1&productTag=clou&campaignDate=January2021&referral_code=UXbT481079) and answer a few questions about yourself, as this will help our research team match you to studies that are a great fit.
+After starting the app, the API documentation is available at: `http://localhost:8080/api/docs`
+
+Port and Cloud Run
+- Cloud Run requires that apps listen on the PORT environment variable. This project uses `process.env.PORT` and falls back to `8080` in `src/main.ts`. The default `containerPort` for Cloud Run is `8080` — if you change the port, update `containerPort` in `.vscode/launch.json`.
+
+Check `GET /api/v1/health` after the Cloud Run emulator or Docker container starts:
+
+```bash
+curl -fsS http://localhost:8080/api/v1/health
+```

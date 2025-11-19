@@ -1,0 +1,27 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: supershop-backend
+build:
+  local:
+    push: false
+  artifacts:
+    - image: supershop-backend
+      context: ..
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        infer:
+          - "src/**/*.ts"
+deploy:
+  kubectl: {}
+manifests:
+  rawYaml:
+    - postgres.yaml
+    - app.yaml
+portForward:
+  - resourceType: service
+    resourceName: supershop-backend
+    namespace: supershop
+    port: 8080
+    localPort: 8080
