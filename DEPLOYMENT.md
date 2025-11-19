@@ -1,252 +1,182 @@
-# Supershop Backend Deployment Guide
+# Supershop Backend Deployment Guide (Cloud Run + Cloud SQL)
 
-This guide provides step-by-step instructions for building and deploying the Supershop Backend application to Google Cloud Run.
+This guide documents the exact, working deployment flow we’re using: Cloud Run with the free Cloud SQL connector (no VPC connector), Secret Manager for sensitive config, and a custom domain via Cloudflare.
 
 ## Prerequisites
 
-1. **Google Cloud SDK**: Install and initialize `gcloud`
-   ```bash
-   # Install gcloud SDK
-   # Authenticate
-   gcloud auth login
-   # Set project
-   gcloud config set project YOUR_PROJECT_ID
-   ```
+- `gcloud` installed and authenticated
+  ```bash
+  gcloud auth login
+  gcloud config set project YOUR_PROJECT_ID
+  ```
+- Cloud SQL Postgres instance: `YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE`
+- Secret Manager enabled
+- Docker (for local builds) and Node 20+ (for local dev)
 
-2. **Docker**: Ensure Docker is installed and running
+## Quick Start (Production)
 
-3. **Node.js**: For local development (Node 20+)
-
-4. **Cloud SQL Instance**: Ensure your PostgreSQL instance is running in Cloud SQL
-
-5. **Secret Manager**: Store sensitive data like JWT_SECRET in Secret Manager
-
-## Project Structure
-
-- `Dockerfile`: Multi-stage build for production
-- `skaffold.yaml`: Configuration for building and deploying
-- `.env.production`: Production environment variables
-- `prisma/`: Database schema and migrations
-
-## Local Development Setup
-
-### 1. Install Dependencies
+1) Create/update secrets (URL-encode any special chars in password, e.g. `@` -> `%40`)
 ```bash
-npm install
+# JWTs
+echo -n "<random-32+bytes>" | gcloud secrets create JWT_SECRET --data-file=- 2>/dev/null || \
+echo -n "<random-32+bytes>" | gcloud secrets versions add JWT_SECRET --data-file=-
+echo -n "<random-32+bytes>" | gcloud secrets create JWT_REFRESH_SECRET --data-file=- 2>/dev/null || \
+echo -n "<random-32+bytes>" | gcloud secrets versions add JWT_REFRESH_SECRET --data-file=-
+echo -n "15m" | gcloud secrets create JWT_EXPIRES_IN --data-file=- 2>/dev/null || \
+echo -n "15m" | gcloud secrets versions add JWT_EXPIRES_IN --data-file=-
+echo -n "7d" | gcloud secrets create JWT_REFRESH_EXPIRES_IN --data-file=- 2>/dev/null || \
+echo -n "7d" | gcloud secrets versions add JWT_REFRESH_EXPIRES_IN --data-file=-
+
+# DATABASE_URL using Cloud SQL connector (Unix socket) — free, no VPC connector
+# Template: postgresql://USER:PASSWORD@localhost:5432/DB?host=/cloudsql/PROJECT:REGION:INSTANCE&schema=public&sslmode=disable
+echo -n "postgresql://supershop_user:REDACTED%40PASS@localhost:5432/supershop?host=/cloudsql/YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE&schema=public&sslmode=disable" \
+| gcloud secrets create DATABASE_URL --data-file=- 2>/dev/null || \
+echo -n "postgresql://supershop_user:REDACTED%40PASS@localhost:5432/supershop?host=/cloudsql/YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE&schema=public&sslmode=disable" \
+| gcloud secrets versions add DATABASE_URL --data-file=-
 ```
 
-### 2. Environment Configuration
-Copy and configure environment files:
-```bash
-cp .env.example .env  # For local development
-# Edit .env with local database URL
-```
+2) Build and deploy to Cloud Run (pick one):
 
-### 3. Database Setup
-For local development with Docker PostgreSQL:
-```bash
-docker run -d --name supershop-local-db \
-  -e POSTGRES_PASSWORD=MUJAHIDrumel123@123 \
-  -e POSTGRES_USER=supershop_user \
-  -e POSTGRES_DB=supershop \
-  -p 5432:5432 \
-  postgres:15-alpine
-```
-
-Apply migrations:
-```bash
-npx prisma migrate deploy
-```
-
-### 4. Run Locally
-```bash
-# Development mode
-npm run start:dev
-
-# Production build
-npm run build
-npm run start:prod
-```
-
-## Building the Application
-
-### Docker Build
-```bash
-# Build the Docker image
-docker build -t gcr.io/YOUR_PROJECT_ID/supershop-backend .
-
-# Configure Docker for GCR
-gcloud auth configure-docker
-
-# Push to Google Container Registry
-docker push gcr.io/YOUR_PROJECT_ID/supershop-backend
-```
-
-### Using Skaffold (Alternative)
-```bash
-# Build and push
-skaffold build
-
-# Or build and deploy
-skaffold run
-```
-
-## Deploying to Cloud Run
-
-### 1. Prepare Secrets
-Ensure JWT_SECRET is stored in Secret Manager:
-```bash
-# Create secret if not exists
-echo -n "your-jwt-secret-here" | gcloud secrets create JWT_SECRET --data-file=-
-
-# Or update existing
-echo -n "your-jwt-secret-here" | gcloud secrets versions add JWT_SECRET --data-file=-
-```
-
-### 2. Deploy to Cloud Run
+- Using an existing image:
 ```bash
 gcloud run deploy supershop-backend \
   --image gcr.io/YOUR_PROJECT_ID/supershop-backend \
-  --add-cloudsql-instances YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE_NAME \
   --region asia-southeast1 \
   --allow-unauthenticated \
-  --set-secrets JWT_SECRET=JWT_SECRET:latest
+  --add-cloudsql-instances YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE \
+  --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest \
+  --clear-vpc-connector
 ```
 
-### 3. Verify Deployment
+- Or build from source directly:
 ```bash
-# Check service status
-gcloud run services describe supershop-backend --region asia-southeast1
-
-# Get service URL
-gcloud run services describe supershop-backend --region asia-southeast1 --format="value(status.url)"
+gcloud run deploy supershop-backend \
+  --source . \
+  --region asia-southeast1 \
+  --allow-unauthenticated \
+  --add-cloudsql-instances YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE \
+  --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest \
+  --clear-vpc-connector
 ```
 
-## Environment Variables
-
-### Production (.env.production)
-```env
-# Application
-NODE_ENV=production
-PORT=8080
-API_VERSION=v1
-API_PREFIX=api
-
-# Database
-DATABASE_URL=postgresql://supershop_user:MUJAHIDrumel123%40123@/supershop?host=/cloudsql/YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE&schema=public
-
-# JWT
-JWT_SECRET=01/VSuHWLI0U0q8PN/oCjddo2Va28SUfm90/yiKBfIU=
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_SECRET=zVxZ+sBIg23YO2yi4yHoo1rhzp56N6lK4AkIL9y4yEQ=
-JWT_REFRESH_EXPIRES_IN=7d
-
-# Throttling (Rate Limiting)
-THROTTLE_TTL=60000
-THROTTLE_LIMIT=10
-
-# CORS
-CORS_ORIGIN=http://localhost:3000
-
-# Deployment
-FRONTEND_URL=http://localhost:3000
-```
-
-### Cloud Run Environment Variables
-- `JWT_SECRET`: Injected from Secret Manager
-- `DATABASE_URL`: Loaded from .env.production in container
-- `PORT`: Automatically set by Cloud Run
-- `NODE_ENV`: Set to production in Dockerfile
-
-## Database Management
-
-### Prisma Commands
+3) Verify
 ```bash
-# Generate client
-npx prisma generate
+SERVICE_URL=$(gcloud run services describe supershop-backend --region asia-southeast1 --format="value(status.url)")
+curl -sS "$SERVICE_URL/api/v1/health"
+```
 
-# Create migration
-npx prisma migrate dev --name description
+## Secrets and Env
+
+Backend consumes these secrets via ConfigService:
+- `JWT_SECRET`
+- `JWT_REFRESH_SECRET`
+- `JWT_EXPIRES_IN` (defaulted to 15m in code if missing)
+- `JWT_REFRESH_EXPIRES_IN` (defaulted to 7d in code if missing)
+- `DATABASE_URL` (must be the connector URL; passwords URL-encoded)
+
+Non-secret envs (optional with safe defaults): `API_PREFIX`, `API_VERSION`, `CORS_ORIGIN` (comma-separated list of allowed origins, e.g. "http://localhost:3000,https://supershop.shomaj.one"), `PORT`.
+
+## Database Migrations & Seed
+
+Recommended: run migrations and seeding from your machine using the Cloud SQL Proxy (free) or connector:
+```bash
+# Start proxy (local)
+./cloud-sql-proxy YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE
+
+# Test connection
+npx -y prisma db execute --file /dev/stdin --url "postgresql://supershop_user:PWD%40ENC@localhost:5432/supershop?schema=public&sslmode=disable" <<<'select 1;'
 
 # Apply migrations
-npx prisma migrate deploy
+npx prisma migrate deploy --schema prisma/schema.prisma --url "postgresql://supershop_user:PWD%40ENC@localhost:5432/supershop?schema=public&sslmode=disable"
 
-# Reset database (dangerous)
-npx prisma migrate reset
-
-# Open Prisma Studio
-npx prisma studio
+# Seed
+npm run prisma:seed  # or: ts-node prisma/seed.ts
 ```
 
-### Cloud SQL Proxy (for local development)
+## Local Development
+
 ```bash
-# Download proxy
+npm install
+cp .env.example .env
+# Set local DATABASE_URL (proxy or local Postgres). URL-encode password!
+npm run start:dev
+```
+
+If using the Cloud SQL Proxy locally:
+```bash
 curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.8.0/cloud-sql-proxy.linux.amd64
 chmod +x cloud-sql-proxy
-
-# Run proxy
 ./cloud-sql-proxy YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE
 ```
 
-## Troubleshooting
+## Custom Domain: api.shomaj.one (Cloudflare DNS)
 
-### Build Issues
-- **OpenSSL warning**: Ensure `openssl` is installed in Docker stages
-- **Prisma client not found**: Run `npx prisma generate` in build
-- **Build context too large**: Add `.dockerignore` file
-
-### Deployment Issues
-- **Container fails to start**: Check logs in Cloud Console
-- **Database connection fails**: Verify Cloud SQL instance and permissions
-- **JWT secret missing**: Ensure secret exists in Secret Manager
-- **Port not listening**: Ensure app binds to `0.0.0.0:$PORT`
-
-### Common Commands
+1) Create the domain mapping in Cloud Run:
 ```bash
-# View Cloud Run logs
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=supershop-backend" --limit=50
-
-# Check service status
-gcloud run services describe supershop-backend --region asia-southeast1
-
-# Update service
-gcloud run deploy supershop-backend --image gcr.io/YOUR_PROJECT_ID/supershop-backend:latest
-
-# Delete service
-gcloud run services delete supershop-backend --region asia-southeast1
+gcloud run domain-mappings create \
+  --service supershop-backend \
+  --domain api.shomaj.one \
+  --region asia-southeast1
 ```
 
-## API Endpoints
+2) Get the required DNS records to add in Cloudflare:
+```bash
+gcloud run domain-mappings describe \
+  --domain api.shomaj.one \
+  --region asia-southeast1 \
+  --format="json(status.resourceRecords)" | jq
+```
+Add exactly those records in Cloudflare DNS for `api.shomaj.one`.
+- Tip: Turn OFF the Cloudflare proxy (gray cloud) until the Google-managed cert shows Ready; you can enable it later (prefer Full (strict)).
 
-Once deployed, the API will be available at:
-- Base URL: `https://YOUR_SERVICE_URL`
-- Health Check: `https://YOUR_SERVICE_URL/api/v1/health`
-- API Docs: `https://YOUR_SERVICE_URL/api/docs`
-- Auth endpoints: `https://YOUR_SERVICE_URL/api/v1/auth/*`
+3) Wait for certificate to provision, then verify:
+```bash
+gcloud run domain-mappings describe --domain api.shomaj.one --region asia-southeast1 \
+  --format="value(status.conditions[?type=Ready].status)"
 
-## Security Considerations
+curl -i https://api.shomaj.one/api/v1/health
+```
 
-1. **Secrets Management**: Use Secret Manager for sensitive data
-2. **Database Access**: Restrict Cloud SQL to specific services
-3. **CORS**: Configure appropriate origins
-4. **Rate Limiting**: Adjust throttle settings as needed
-5. **HTTPS**: Cloud Run provides automatic HTTPS
+## Frontend (Vercel) Integration
 
-## Monitoring
+- In Vercel Project Settings → Environment Variables:
+  - `NEXT_PUBLIC_API_BASE_URL = https://api.shomaj.one`
+- Redeploy the frontend.
+- CORS: backend currently accepts a single origin. Set the secret/env `CORS_ORIGIN` to your production frontend origin, e.g. `https://shomaj.one` or `https://<project>.vercel.app` and redeploy the API.
 
-- **Cloud Run Metrics**: View in Google Cloud Console
-- **Logs**: Use Cloud Logging for application logs
-- **Health Checks**: Implement proper health endpoints
-- **Database Monitoring**: Monitor Cloud SQL performance
+## Troubleshooting & Ops
 
-## Cost Optimization
+Common checks:
+```bash
+# Logs
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=supershop-backend" --limit 50 \
+  --format "table(timestamp,severity,textPayload)"
 
-- **Instance Type**: Use appropriate CPU/memory allocation
-- **Scaling**: Configure min/max instances based on load
-- **Cold Starts**: Keep minimum instances > 0 for faster response
-- **Database**: Choose appropriate Cloud SQL tier
+# Service config
+gcloud run services describe supershop-backend --region asia-southeast1 \
+  --format "json(spec.template.metadata.annotations,spec.template.spec.containers[0].env)" | jq
+```
 
----
+Notes:
+- Do not use a Serverless VPC Access connector for DB — the Cloud SQL connector (Unix socket) is free and already configured via `--add-cloudsql-instances`.
+- If you previously set a VPC connector, remove it from the service with `--clear-vpc-connector` and optionally delete the connector in Compute → VPC Access.
+- If your DB password contains special characters, URL-encode them in `DATABASE_URL`.
 
-**Note**: Replace `YOUR_PROJECT_ID` and `YOUR_INSTANCE` with actual values. Ensure all secrets and configurations are properly set before deployment.</content>
+## API
+
+- Health: `/api/v1/health`
+- Auth: `/api/v1/auth/*`
+- Swagger: `/api/docs`
+
+## Security
+
+- Secrets in Secret Manager only; never bake into images.
+- CORS limited to your frontend origin.
+- Use principle of least privilege for the Cloud Run service account (Cloud SQL Client + Secret Accessor only).
+
+## Cost Tips
+
+- Avoid Serverless VPC Access unless necessary.
+- Right-size Cloud Run CPU/memory; set min instances to 0 if cold starts are acceptable.
+- Choose appropriate Cloud SQL tier.
 <parameter name="filePath">/mnt/storage/Projects/supershop-backend/DEPLOYMENT.md
