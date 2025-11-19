@@ -23,7 +23,7 @@ export class InventoryService {
 
   // Limit results for typeahead performance
     if (q && q.length > 0) {
-      return this.prisma.inventoryItem.findMany({
+      const items = await this.prisma.inventoryItem.findMany({
         where,
         include: {
           variant: {
@@ -32,10 +32,14 @@ export class InventoryService {
         },
         orderBy: { createdAt: 'desc' },
         take: 20,
-      })
+      });
+      return items.map(item => ({
+        ...item,
+        maxDiscount: item.maxDiscountRate,
+      }));
   }
 
-    return this.prisma.inventoryItem.findMany({
+    const items = await this.prisma.inventoryItem.findMany({
       where,
       include: {
         variant: {
@@ -46,15 +50,25 @@ export class InventoryService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    return items.map(item => ({
+      ...item,
+      maxDiscount: item.maxDiscountRate,
+    }));
   }
 
   async create(tenantId: string, data: any) {
-    return this.prisma.inventoryItem.create({
+    const { maxDiscount, ...rest } = data;
+    const result = await this.prisma.inventoryItem.create({
       data: {
-        ...data,
+        ...rest,
+        maxDiscountRate: maxDiscount,
         tenantId,
       },
     });
+    return {
+      ...result,
+      maxDiscount: result.maxDiscountRate,
+    };
   }
 
   async update(id: string, tenantId: string, data: any) {
@@ -66,10 +80,20 @@ export class InventoryService {
       throw new NotFoundException('Inventory item not found');
     }
 
-    return this.prisma.inventoryItem.update({
+    const { maxDiscount, ...rest } = data;
+    const updateData: any = { ...rest };
+    if (maxDiscount !== undefined) {
+      updateData.maxDiscountRate = maxDiscount;
+    }
+
+    const result = await this.prisma.inventoryItem.update({
       where: { id },
-      data,
+      data: updateData,
     });
+    return {
+      ...result,
+      maxDiscount: result.maxDiscountRate,
+    };
   }
 
   async delete(id: string, tenantId: string) {
