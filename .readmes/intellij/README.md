@@ -1,6 +1,6 @@
-# Cloud Run Hello World with Cloud Code
+# SuperShop Backend (IntelliJ helper README)
 
-This "Hello World" sample demonstrates how to deploy a simple "Hello World" application to Cloud Run using the [Cloud Code extension for IntelliJ](https://cloud.google.com/code/docs/intellij/install?utm_source=ext&utm_medium=partner&utm_campaign=CDR_kri_gcp_cloudcodereadmes_012521&utm_content=-).
+This repo contains a NestJS backend; the original Cloud Run sample content has been removed. Use this guidance only for IDE-level help when necessary.
 
 ### Table of Contents
 * [Getting Started](#getting-started)
@@ -15,23 +15,9 @@ This "Hello World" sample demonstrates how to deploy a simple "Hello World" appl
 ---
 <h2 id="getting-started"> Getting Started </h2>
 
-<h3 id="run-the-app-locally-with-the-cloud-run-emulator"> Run the app locally with the Cloud Run Emulator</h3>
+### Run the app locally
 
-<h4 id="define-run-configuration"> Define run configuration</h4>
-
-1. Click the Run/Debug configurations dropdown on the top taskbar and select 'Edit Configurations'. 
-![image](./img/edit-config.png)
-
-2. Select 'Cloud Run: Run Locally' and specify your [builder option](https://cloud.google.com/code/docs/intellij/developing-a-cloud-run-app#defining_your_run_configuration?utm_source=ext&utm_medium=partner&utm_campaign=CDR_kri_gcp_cloudcodereadmes_012521&utm_content=-). Cloud Code supports Docker, Jib, and Buildpacks. See the skaffold documentation on [builders](https://skaffold.dev/docs/builders/) for more information about build artifact types.  
-![image](./img/local-build-config.png)
-
-<h4 id="run-the-application"> Run the application</h4>
-
-1. Click the Run/Debug configurations dropdown and select 'Cloud Run: Run Locally'. Click the run icon.  
-![image](./img/config-run-locally.png)
-
-2. View the build process in the output window. Once the build has finished, you will receive a notification from the Event Log. Click 'View' to access the local URLs for your deployed services.  
-![image](./img/local-success.png)
+Use the local development and Docker instructions in the top-level README.  The NestJS app can be run locally with hot-reload using `npm run start:dev` or as a production build using `npm run build && npm run start:prod`.
 
 
 <h3 id="deploy-to-cloud-run"> Deploy to Cloud Run</h3>

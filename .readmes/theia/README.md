@@ -1,7 +1,6 @@
-# Cloud Run Hello World with Cloud Code
+# SuperShop Backend (Theia helper README)
 
-
-This "Hello World" sample demonstrates how to deploy a simple "Hello World" application to Cloud Run using the Cloud Code extension for Cloud Shell.
+This repo contains a NestJS backend — the original Cloud Run sample content has been removed. Keep this readme for IDE guidance only.
 
 ### Table of Contents
 * [Getting Started](#getting-started)

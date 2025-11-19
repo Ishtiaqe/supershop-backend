@@ -1,28 +1,51 @@
 {
-    "configurations": [
-        {
-            "name": "Cloud Run: Run/Debug Locally",
-            "type": "cloudcode.cloudrun",
-            "request": "launch",
-            "build": {
-                "docker": {
-                    "path": "Dockerfile"
-                }
-            },
-            "image": "supershop-backend",
-            "service": {
-                "name": "supershop-backend",
-                "containerPort": 8080,
-                "resources": {
-                    "limits": {
-                        "memory": "256Mi"
-                    }
-                }
-            },
-            "target": {
-                "minikube": {}
-            },
-            "watch": true
+  "configurations": [
+    {
+      "name": "Cloud Run: Run/Debug Locally",
+      "type": "cloudcode.cloudrun",
+      "request": "launch",
+      "build": {
+        "docker": {
+          "path": "Dockerfile"
         }
-    ]
+      },
+      "image": "supershop-backend",
+      "service": {
+        "name": "supershop-backend",
+        "containerPort": 8080,
+        "resources": {
+          "limits": {
+            "memory": "256Mi"
+          }
+        },
+        "env": [
+          {
+            "name": "JWT_SECRET",
+            "value": "01/VSuHWLI0U0q8PN/oCjddo2Va28SUfm90/yiKBfIU="
+          },
+          {
+            "name": "DATABASE_URL",
+            "value": "postgresql://supershop_user:MUJAHIDrumel123%40123@127.0.0.1:5432/supershop?schema=public"
+          },
+          {
+            "name": "NODE_ENV",
+            "value": "development"
+          },
+          {
+            "name": "PORT",
+            "value": "8080"
+          },
+          {
+            "name": "CORS_ORIGIN",
+            "value": "http://localhost:3000"
+          }
+        ]
+      },
+      "target": {
+        "minikube": {}
+      },
+      "watch": true,
+      // "autoStop": false
+    }
+  ]
 }

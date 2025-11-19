@@ -1,22 +1,47 @@
 # Use the official lightweight Node.js 18 image.
 # https://hub.docker.com/_/node
-FROM node:19-alpine
+FROM node:20-bullseye-slim AS deps
 
 # Create and change to the app directory.
-WORKDIR /usr/src/app
+WORKDIR /app
 
 # Copy application dependency manifests to the container image.
 # A wildcard is used to ensure both package.json AND package-lock.json are copied.
 # Copying this separately prevents re-running npm install on every code change.
 COPY package*.json ./
 
-# Install dependencies.
-# If you add a package-lock.json speed your build by switching to 'npm ci'.
-# RUN npm ci --only=production
-RUN npm install --production
+# Install dependencies using npm ci for reproducibility
+RUN npm ci --silent
 
 # Copy local code to the container image.
-COPY . ./
+# Build stage (copy node_modules from deps to avoid re-installing)
+FROM node:20-bullseye-slim AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Ensure OpenSSL is available so Prisma can detect engine properly
+RUN apt-get update && apt-get install -y openssl libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Generate Prisma client and build the app
+RUN npm run build
 
 # Run the web service on container startup.
-CMD ["node", "index.js"]
+FROM node:20-bullseye-slim AS production
+WORKDIR /usr/src/app
+ENV PORT 8080
+ENV HOST 0.0.0.0
+ENV NODE_ENV=production
+WORKDIR /usr/src/app
+
+# Copy the already-built artifacts and node_modules (which includes the generated Prisma client)
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package*.json ./
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/prisma ./prisma
+
+# Ensure OpenSSL for Prisma runtime
+RUN apt-get update && apt-get install -y openssl libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+
+EXPOSE 8080
+CMD ["node", "dist/main.js"]
