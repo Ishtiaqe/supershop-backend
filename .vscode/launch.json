@@ -25,7 +25,7 @@
           },
           {
             "name": "DATABASE_URL",
-            "value": "postgresql://supershop_user:MUJAHIDrumel123%40123@127.0.0.1:5432/supershop?schema=public"
+            "value": "postgresql://supershop_user:MUJAHIDrumel123%40123@host.minikube.internal:5432/supershop?schema=public"
           },
           {
             "name": "NODE_ENV",
@@ -45,7 +45,7 @@
         "minikube": {}
       },
       "watch": true,
-      // "autoStop": false
+      "autoStop": false
     }
   ]
 }
