@@ -1,6 +1,6 @@
 # Use the official lightweight Node.js 18 image.
 # https://hub.docker.com/_/node
-FROM node:20-bullseye-slim AS deps
+FROM node:20-alpine AS deps
 
 # Create and change to the app directory.
 WORKDIR /app
@@ -15,24 +15,24 @@ RUN npm ci --silent
 
 # Copy local code to the container image.
 # Build stage (copy node_modules from deps to avoid re-installing)
-FROM node:20-bullseye-slim AS build
+FROM node:20-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN npx prisma generate && npm run build
 
 # Ensure OpenSSL is available so Prisma can detect engine properly
-RUN apt-get update && apt-get install -y openssl libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y openssl libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Generate Prisma client and build the app
-RUN npm run build
+# RUN npm run build
 
 # Run the web service on container startup.
-FROM node:20-bullseye-slim AS production
+FROM node:20-alpine AS production
 WORKDIR /usr/src/app
 ENV PORT 8080
-ENV HOST 0.0.0.0
+# ENV HOST 0.0.0.0
 ENV NODE_ENV=production
-WORKDIR /usr/src/app
 
 # Copy the already-built artifacts and node_modules (which includes the generated Prisma client)
 COPY --from=build /app/node_modules ./node_modules
