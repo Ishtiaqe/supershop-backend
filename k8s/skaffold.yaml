@@ -22,6 +22,6 @@ manifests:
 portForward:
   - resourceType: service
     resourceName: supershop-backend
-    namespace: supershop
+    namespace: default
     port: 8080
     localPort: 8080

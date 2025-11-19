@@ -110,7 +110,7 @@ npx prisma migrate reset
 **Solution 2: Verify credentials**
 ```bash
 # Test connection manually
-psql "host=127.0.0.1 port=5432 dbname=supershop user=supershop_user password=MUJAHIDrumel123"
+psql "host=127.0.0.1 port=5432 dbname=supershop user=supershop_user password=MUJAHIDrumel123@123"
 ```
 
 ### Error: "The provided database string is invalid"
@@ -140,7 +140,7 @@ If you don't want to use Cloud SQL Proxy during development:
 # Start local PostgreSQL with Docker
 docker run -d \
   --name supershop-local-db \
-  -e POSTGRES_PASSWORD=MUJAHIDrumel123 \
+  -e POSTGRES_PASSWORD=MUJAHIDrumel123@123 \
   -e POSTGRES_USER=supershop_user \
   -e POSTGRES_DB=supershop \
   -p 5432:5432 \

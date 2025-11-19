@@ -14,7 +14,7 @@ import { SalesModule } from './modules/sales/sales.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: ['.env', '.env.production'],
     }),
     ThrottlerModule.forRoot([
       {
