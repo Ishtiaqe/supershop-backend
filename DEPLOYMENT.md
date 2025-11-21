@@ -43,7 +43,7 @@ gcloud run deploy supershop-backend \
   --image gcr.io/YOUR_PROJECT_ID/supershop-backend \
   --region asia-southeast1 \
   --allow-unauthenticated \
-  --add-cloudsql-instances YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE \
+  --add-cloudsql-instances shomaj-817b0:asia-southeast1:supershop-backend \
   --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest \
   --clear-vpc-connector
 ```
@@ -54,7 +54,7 @@ gcloud run deploy supershop-backend \
   --source . \
   --region asia-southeast1 \
   --allow-unauthenticated \
-  --add-cloudsql-instances YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE \
+  --add-cloudsql-instances shomaj-817b0:asia-southeast1:supershop-backend \
   --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest \
   --clear-vpc-connector
 ```

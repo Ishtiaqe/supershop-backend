@@ -3,7 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class SalesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(tenantId: string, employeeId: string, data: any) {
     const { items, ...saleData } = data;
@@ -135,5 +135,74 @@ export class SalesService {
       totalProfit,
       averageOrderValue: totalSales > 0 ? totalRevenue / totalSales : 0,
     };
+  }
+
+  async getOverallStatistics(tenantId: string) {
+    const sales = await this.prisma.sale.findMany({
+      where: { tenantId },
+    });
+
+    const ordersCount = sales.length;
+    const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+    const totalProfit = sales.reduce((sum, sale) => sum + sale.totalProfit, 0);
+
+    return {
+      ordersCount,
+      totalRevenue,
+      totalProfit,
+    };
+  }
+
+  async getAssetValue(tenantId: string) {
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { tenantId },
+      select: { quantity: true, purchasePrice: true },
+    });
+
+    const totalAssetValue = items.reduce(
+      (sum, item) => sum + item.quantity * item.purchasePrice,
+      0,
+    );
+
+    return { totalAssetValue };
+  }
+
+  async getGraphData(tenantId: string, period: string = '30d') {
+    const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0, 0, 0, 0);
+
+    const sales = await this.prisma.sale.findMany({
+      where: {
+        tenantId,
+        saleTime: { gte: startDate },
+      },
+      orderBy: { saleTime: 'asc' },
+    });
+
+    // Initialize map with all dates in range
+    const grouped = new Map<string, { date: string; sales: number; profit: number }>();
+    for (let i = 0; i < days; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      grouped.set(dateStr, { date: dateStr, sales: 0, profit: 0 });
+    }
+
+    // Aggregate sales
+    sales.forEach((sale) => {
+      const dateStr = sale.saleTime.toISOString().split('T')[0];
+      if (grouped.has(dateStr)) {
+        const curr = grouped.get(dateStr)!;
+        curr.sales += sale.totalAmount;
+        curr.profit += sale.totalProfit;
+      }
+    });
+
+    // Convert to array and sort by date
+    return Array.from(grouped.values()).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
   }
 }

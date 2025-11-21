@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SalesService } from './sales.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,7 +12,7 @@ import { UserRole } from '../auth/dto/auth.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('sales')
 export class SalesController {
-  constructor(private salesService: SalesService) {}
+  constructor(private salesService: SalesService) { }
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
@@ -33,6 +33,27 @@ export class SalesController {
   @ApiOperation({ summary: 'Get today\'s sales summary' })
   async getTodaySummary(@CurrentUser() user: any) {
     return this.salesService.getTodaySummary(user.tenantId);
+  }
+
+  @Get('statistics/overall')
+  @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
+  @ApiOperation({ summary: 'Get overall sales statistics' })
+  async getOverallStatistics(@CurrentUser() user: any) {
+    return this.salesService.getOverallStatistics(user.tenantId);
+  }
+
+  @Get('analytics/asset-value')
+  @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
+  @ApiOperation({ summary: 'Get total asset value' })
+  async getAssetValue(@CurrentUser() user: any) {
+    return this.salesService.getAssetValue(user.tenantId);
+  }
+
+  @Get('analytics/graphs')
+  @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
+  @ApiOperation({ summary: 'Get graph data' })
+  async getGraphData(@CurrentUser() user: any, @Query('period') period?: string) {
+    return this.salesService.getGraphData(user.tenantId, period);
   }
 
   @Get(':id')
