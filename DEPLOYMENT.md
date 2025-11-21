@@ -51,7 +51,7 @@ gcloud run deploy supershop-backend \
   --region asia-southeast1 \
   --allow-unauthenticated \
   --add-cloudsql-instances shomaj-817b0:asia-southeast1:supershop-backend \
-  --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest \
+  --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_CALLBACK_URL=GOOGLE_CALLBACK_URL:latest,CORS_ORIGIN=CORS_ORIGIN:latest \
   --clear-vpc-connector
 ```
 
@@ -62,7 +62,7 @@ gcloud run deploy supershop-backend \
   --region asia-southeast1 \
   --allow-unauthenticated \
   --add-cloudsql-instances shomaj-817b0:asia-southeast1:supershop-backend \
-  --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest \
+  --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_CALLBACK_URL=GOOGLE_CALLBACK_URL:latest,CORS_ORIGIN=CORS_ORIGIN:latest \
   --clear-vpc-connector
 ```
 
@@ -73,7 +73,7 @@ gcloud run deploy supershop-backend \
   --region asia-southeast1 \
   --allow-unauthenticated \
   --add-cloudsql-instances shomaj-817b0:asia-southeast1:supershop-backend \
-  --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest \
+  --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_CALLBACK_URL=GOOGLE_CALLBACK_URL:latest,CORS_ORIGIN=CORS_ORIGIN:latest \
   --clear-vpc-connector
 ```
 
@@ -91,8 +91,40 @@ Backend consumes these secrets via ConfigService:
 - `JWT_EXPIRES_IN` (defaulted to 15m in code if missing)
 - `JWT_REFRESH_EXPIRES_IN` (defaulted to 7d in code if missing)
 - `DATABASE_URL` (must be the connector URL; passwords URL-encoded)
+- `GOOGLE_CLIENT_ID` (required for Google OAuth)
+- `GOOGLE_CLIENT_SECRET` (required for Google OAuth)
+- `GOOGLE_CALLBACK_URL` (required for Google OAuth, e.g. "https://api.shomaj.one/api/v1/auth/google/callback")
+- `CORS_ORIGIN` (comma-separated list of allowed origins, e.g. "http://localhost:3000,https://supershop.shomaj.one")
 
-Non-secret envs (optional with safe defaults): `API_PREFIX`, `API_VERSION`, `CORS_ORIGIN` (comma-separated list of allowed origins, e.g. "http://localhost:3000,https://supershop.shomaj.one"), `PORT`.
+### Local secret manager sync (optional)
+
+If you'd like to keep local `.env` or `.env.production` files synced with your Secret Manager values (for local testing), use the helper scripts in `scripts/`.
+
+1) Ensure you have the gcloud CLI installed and set the right project.
+
+2) Run the check to see which secrets exist:
+
+```bash
+./scripts/check-secrets.sh --project shomaj-817b0
+```
+
+3) Fetch and sync secrets into an env file (dry-run prints values without modifying):
+
+```bash
+# Dry-run, prints secrets
+./scripts/fetch-secrets.sh --env-file .env --project shomaj-817b0 --dry-run
+
+# Actually update your .env
+./scripts/fetch-secrets.sh --env-file .env --project shomaj-817b0
+
+# Update .env.production
+./scripts/fetch-secrets.sh --env-file .env.production --project shomaj-817b0
+```
+
+Important: DO NOT commit your updated `.env` files with real secrets to the repository. Add them to `.gitignore` if necessary.
+
+
+Non-secret envs (optional with safe defaults): `API_PREFIX`, `API_VERSION`, `PORT`.
 
 ## Database Migrations & Seed
 
