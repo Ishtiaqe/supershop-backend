@@ -80,6 +80,7 @@ export class InventoryService {
       // 1. Create Product
       const product = await this.prisma.product.create({
         data: {
+          tenantId,
           name: itemName,
           productType: productType || 'GENERAL',
           genericName: genericName,
@@ -90,6 +91,7 @@ export class InventoryService {
       // 2. Create Variant (Default 1 unit)
       const variant = await this.prisma.productVariant.create({
         data: {
+          tenantId,
           productId: product.id,
           variantName: 'Standard', // Default variant name
           sku: `SKU-${Date.now()}`, // Simple auto-generated SKU
