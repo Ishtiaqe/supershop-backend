@@ -41,6 +41,11 @@ enum DiscountType {
   FIXED
 }
 
+enum ProductType {
+  GENERAL
+  MEDICINE
+}
+
 // Users table - stores all users across all tenants
 model User {
   id        String   @id @default(uuid())
@@ -56,6 +61,7 @@ model User {
   tenant        Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sales         Sale[]
   refreshTokens RefreshToken[]
+  pushSubscriptions PushSubscription[]
 
   @@index([email])
   @@index([tenantId])
@@ -75,6 +81,21 @@ model RefreshToken {
   @@index([userId])
   @@index([token])
   @@map("refresh_tokens")
+}
+
+// Push subscriptions for web notifications
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  keys      Json     // { p256dh: string, auth: string }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 // Tenants table - each tenant is a separate business/store
@@ -142,13 +163,16 @@ model Supplier {
 
 // Master products - generic product information
 model Product {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  brandId     String?
-  categoryId  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String      @id @default(uuid())
+  name             String
+  description      String?
+  productType      ProductType @default(GENERAL)
+  genericName      String?     // For medicines - the generic/chemical name
+  manufacturerName String?     // Manufacturer/brand company name
+  brandId          String?
+  categoryId       String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   brand    Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
   category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -157,6 +181,7 @@ model Product {
   @@index([name])
   @@index([brandId])
   @@index([categoryId])
+  @@index([productType])
   @@map("products")
 }
 

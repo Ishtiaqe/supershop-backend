@@ -8,6 +8,8 @@ import { UsersModule } from './modules/users/users.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SalesModule } from './modules/sales/sales.module';
 
 @Module({
@@ -23,14 +25,16 @@ import { SalesModule } from './modules/sales/sales.module';
       },
     ]),
     PrismaModule,
-  HealthModule,
-  // CacheModule removed — we rely on frontend sessionStorage for typeahead caching
+    HealthModule,
+    // CacheModule removed — we rely on frontend sessionStorage for typeahead caching
     AuthModule,
     UsersModule,
     TenantsModule,
     CatalogModule,
     InventoryModule,
     SalesModule,
+    NotificationsModule,
+    ScheduleModule.forRoot(),
   ],
 })
-export class AppModule {}
+export class AppModule { }

@@ -16,7 +16,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto) {
     const { email, password, fullName, phone, role, tenantId } = registerDto;
@@ -171,5 +171,48 @@ export class AuthService {
     } catch (error) {
       throw new BadRequestException('Invalid refresh token');
     }
+  }
+
+  async googleLogin(googleUser: any) {
+    const { email, firstName, lastName } = googleUser;
+
+    // Check if user exists
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    // If user doesn't exist, create new user
+    if (!user) {
+      // For super admin (ishtiaqe22@gmail.com)
+      if (email === 'ishtiaqe22@gmail.com') {
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            fullName: `${firstName} ${lastName}`.trim() || email,
+            password: await bcrypt.hash(Math.random().toString(36), 10), // Random password
+            role: 'SUPER_ADMIN',
+          },
+        });
+      } else {
+        // For regular users, check if they should be allowed
+        throw new UnauthorizedException(
+          'User not found. Please contact administrator to set up your account.',
+        );
+      }
+    }
+
+    // Generate tokens
+    const tokens = await this.generateTokens(user.id);
+
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        tenantId: user.tenantId,
+      },
+    };
   }
 }
