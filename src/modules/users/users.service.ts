@@ -50,6 +50,16 @@ export class UsersService {
       throw new ForbiddenException('Insufficient permissions');
     }
 
+    // Check email uniqueness if email is being updated
+    if (updateUserDto.email && updateUserDto.email !== user.email) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email: updateUserDto.email },
+      });
+      if (existingUser) {
+        throw new BadRequestException('Email already in use');
+      }
+    }
+
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data: updateUserDto,
