@@ -72,3 +72,13 @@ Check `GET /api/v1/health` after the Cloud Run emulator or Docker container star
 ```bash
 curl -fsS http://localhost:8080/api/v1/health
 ```
+
+## Database backups
+
+The backend contains helper scripts for backing up the Postgres database and exporting data via Prisma.
+
+- `scripts/backup-db.sh` — uses `pg_dump` to create SQL dumps (custom format)
+- `scripts/export-prisma.ts` — exports each Prisma model into JSON files under `backups/`
+- `scripts/query-to-inserts.ts` — runs SQL queries and exports results as INSERT statements
+
+See `BACKUP_RESTORE_GUIDE.md` for detailed instructions on backups and restores.
