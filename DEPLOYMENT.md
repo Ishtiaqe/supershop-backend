@@ -7,9 +7,9 @@ This guide documents the exact, working deployment flow we’re using: Cloud Run
 - `gcloud` installed and authenticated
   ```bash
   gcloud auth login
-  gcloud config set project YOUR_PROJECT_ID
+  gcloud config set project shomaj-817b0
   ```
-- Cloud SQL Postgres instance: `YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE`
+- Cloud SQL Postgres instance: `shomaj-817b0:asia-southeast1:YOUR_INSTANCE`
 - Secret Manager enabled
 - Docker (for local builds) and Node 20+ (for local dev)
 
@@ -29,18 +29,25 @@ echo -n "7d" | gcloud secrets versions add JWT_REFRESH_EXPIRES_IN --data-file=-
 
 # DATABASE_URL using Cloud SQL connector (Unix socket) — free, no VPC connector
 # Template: postgresql://USER:PASSWORD@localhost:5432/DB?host=/cloudsql/PROJECT:REGION:INSTANCE&schema=public&sslmode=disable
-echo -n "postgresql://supershop_user:REDACTED%40PASS@localhost:5432/supershop?host=/cloudsql/YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE&schema=public&sslmode=disable" \
+echo -n "postgresql://supershop_user:REDACTED%40PASS@localhost:5432/supershop?host=/cloudsql/shomaj-817b0:asia-southeast1:YOUR_INSTANCE&schema=public&sslmode=disable" \
 | gcloud secrets create DATABASE_URL --data-file=- 2>/dev/null || \
-echo -n "postgresql://supershop_user:REDACTED%40PASS@localhost:5432/supershop?host=/cloudsql/YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE&schema=public&sslmode=disable" \
+echo -n "postgresql://supershop_user:REDACTED%40PASS@localhost:5432/supershop?host=/cloudsql/shomaj-817b0:asia-southeast1:YOUR_INSTANCE&schema=public&sslmode=disable" \
 | gcloud secrets versions add DATABASE_URL --data-file=-
 ```
 
 2) Build and deploy to Cloud Run (pick one):
 
-- Using an existing image:
+- Build locally and deploy:
 ```bash
+# Build the Docker image locally
+docker build -t gcr.io/shomaj-817b0/supershop-backend .
+
+# Push the image to Google Container Registry
+docker push gcr.io/shomaj-817b0/supershop-backend
+
+# Deploy to Cloud Run
 gcloud run deploy supershop-backend \
-  --image gcr.io/YOUR_PROJECT_ID/supershop-backend \
+  --image gcr.io/shomaj-817b0/supershop-backend \
   --region asia-southeast1 \
   --allow-unauthenticated \
   --add-cloudsql-instances shomaj-817b0:asia-southeast1:supershop-backend \
@@ -48,7 +55,18 @@ gcloud run deploy supershop-backend \
   --clear-vpc-connector
 ```
 
-- Or build from source directly:
+- Using an existing image (if already built and pushed):
+```bash
+gcloud run deploy supershop-backend \
+  --image gcr.io/shomaj-817b0/supershop-backend \
+  --region asia-southeast1 \
+  --allow-unauthenticated \
+  --add-cloudsql-instances shomaj-817b0:asia-southeast1:supershop-backend \
+  --set-secrets JWT_SECRET=JWT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_EXPIRES_IN=JWT_EXPIRES_IN:latest,JWT_REFRESH_EXPIRES_IN=JWT_REFRESH_EXPIRES_IN:latest,DATABASE_URL=DATABASE_URL:latest \
+  --clear-vpc-connector
+```
+
+- Or build from source directly (in cloud):
 ```bash
 gcloud run deploy supershop-backend \
   --source . \
@@ -81,7 +99,7 @@ Non-secret envs (optional with safe defaults): `API_PREFIX`, `API_VERSION`, `COR
 Recommended: run migrations and seeding from your machine using the Cloud SQL Proxy (free) or connector:
 ```bash
 # Start proxy (local)
-./cloud-sql-proxy YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE
+./cloud-sql-proxy shomaj-817b0:asia-southeast1:YOUR_INSTANCE
 
 # Test connection
 npx -y prisma db execute --file /dev/stdin --url "postgresql://supershop_user:PWD%40ENC@localhost:5432/supershop?schema=public&sslmode=disable" <<<'select 1;'
@@ -106,7 +124,7 @@ If using the Cloud SQL Proxy locally:
 ```bash
 curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.8.0/cloud-sql-proxy.linux.amd64
 chmod +x cloud-sql-proxy
-./cloud-sql-proxy YOUR_PROJECT_ID:asia-southeast1:YOUR_INSTANCE
+./cloud-sql-proxy shomaj-817b0:asia-southeast1:YOUR_INSTANCE
 ```
 
 ## Custom Domain: api.shomaj.one (Cloudflare DNS)
