@@ -13,8 +13,9 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, RefreshTokenDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, RefreshTokenDto, ChangePasswordDto } from './dto/auth.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
 
 @ApiTags('Authentication')
 @Controller('auth')

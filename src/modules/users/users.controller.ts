@@ -63,4 +63,33 @@ export class UsersController {
   ) {
     return this.usersService.changePassword(id, changePasswordDto, user.id, user.role);
   }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile retrieved' })
+  async getMe(@CurrentUser() user: any) {
+    return this.usersService.findOne(user.id);
+  }
+
+  @Put('me')
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @ApiResponse({ status: 400, description: 'Email already in use' })
+  async updateMe(
+    @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.usersService.update(user.id, updateUserDto, user.id, user.role);
+  }
+
+  @Post('me/change-password')
+  @ApiOperation({ summary: 'Change current user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid current password' })
+  async changeMyPassword(
+    @Body() changePasswordDto: ChangePasswordDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.usersService.changePassword(user.id, changePasswordDto, user.id, user.role);
+  }
 }

@@ -5,6 +5,11 @@ import { UserRole } from '../../auth/dto/auth.dto';
 export class UpdateUserDto {
   @ApiPropertyOptional()
   @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   fullName?: string;
 

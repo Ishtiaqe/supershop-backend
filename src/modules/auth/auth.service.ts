@@ -215,4 +215,35 @@ export class AuthService {
       },
     };
   }
+
+  async changePasswordForUser(currentUserId: string, userId: string, newPassword: string) {
+    // Check if current user is SUPER_ADMIN
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: currentUserId },
+    });
+
+    if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
+      throw new UnauthorizedException('Only super admin can change passwords for other users');
+    }
+
+    // Check if target user exists
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!targetUser) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Password changed successfully' };
+  }
 }
