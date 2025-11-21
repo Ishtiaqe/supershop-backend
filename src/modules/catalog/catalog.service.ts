@@ -17,6 +17,7 @@ export class CatalogService {
     // Search for variants whose product name or variant name matches the query
     const variants = await this.prisma.productVariant.findMany({
       where: {
+        tenantId,
         OR: [
           {
             product: {
@@ -77,6 +78,7 @@ export class CatalogService {
    */
   async getCatalogItems(tenantId: string) {
     const variants = await this.prisma.productVariant.findMany({
+      where: { tenantId },
       include: {
         product: {
           select: {
@@ -127,10 +129,11 @@ export class CatalogService {
   /**
    * Find or create a product by name
    */
-  async getOrCreateProduct(name: string, description?: string) {
-    // Try to find existing product (case-insensitive)
+  async getOrCreateProduct(tenantId: string, name: string, description?: string) {
+    // Try to find existing product (case-insensitive) for this tenant
     let product = await this.prisma.product.findFirst({
       where: {
+        tenantId,
         name: {
           equals: name,
           mode: 'insensitive',
@@ -141,6 +144,7 @@ export class CatalogService {
     if (!product) {
       product = await this.prisma.product.create({
         data: {
+          tenantId,
           name,
           description,
         },
@@ -159,6 +163,16 @@ export class CatalogService {
     sku: string,
     retailPrice: number
   ) {
+    // Get the product to get tenantId
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { tenantId: true }
+    });
+
+    if (!product) {
+      throw new Error('Product not found');
+    }
+
     // Try to find existing variant for this product
     let variant = await this.prisma.productVariant.findFirst({
       where: {
@@ -174,6 +188,7 @@ export class CatalogService {
       variant = await this.prisma.productVariant.create({
         data: {
           productId,
+          tenantId: product.tenantId,
           variantName,
           sku,
           retailPrice,
@@ -187,17 +202,14 @@ export class CatalogService {
   /**
    * Create a new catalog item (product + variant)
    */
-  async createCatalogItem(data: {
+  async createCatalogItem(tenantId: string, data: {
     productName: string;
     variantName: string;
     sku: string;
     retailPrice: number;
     description?: string;
   }) {
-    const product = await this.getOrCreateProduct(
-      data.productName,
-      data.description
-    );
+    const product = await this.getOrCreateProduct(tenantId, data.productName, data.description);
 
     const variant = await this.getOrCreateVariant(
       product.id,
@@ -272,8 +284,9 @@ export class CatalogService {
 
   // ===== Category Management =====
 
-  async getAllCategories() {
+  async getAllCategories(tenantId: string) {
     return this.prisma.category.findMany({
+      where: { tenantId },
       include: {
         _count: {
           select: { products: true },
@@ -283,9 +296,9 @@ export class CatalogService {
     });
   }
 
-  async createCategory(name: string) {
+  async createCategory(tenantId: string, name: string) {
     return this.prisma.category.create({
-      data: { name },
+      data: { tenantId, name },
     });
   }
 
@@ -317,8 +330,9 @@ export class CatalogService {
 
   // ===== Brand Management =====
 
-  async getAllBrands() {
+  async getAllBrands(tenantId: string) {
     return this.prisma.brand.findMany({
+      where: { tenantId },
       include: {
         _count: {
           select: { products: true },
@@ -328,9 +342,9 @@ export class CatalogService {
     });
   }
 
-  async createBrand(name: string) {
+  async createBrand(tenantId: string, name: string) {
     return this.prisma.brand.create({
-      data: { name },
+      data: { tenantId, name },
     });
   }
 

@@ -31,8 +31,8 @@ export class CatalogController {
   @Post()
   @Roles(UserRole.OWNER)
   @ApiOperation({ summary: 'Create new catalog item' })
-  async create(@Body() data: any) {
-    return this.catalogService.createCatalogItem(data);
+  async create(@CurrentUser() user: any, @Body() data: any) {
+    return this.catalogService.createCatalogItem(user.tenantId, data);
   }
 
   @Put(':id')
@@ -54,15 +54,15 @@ export class CatalogController {
   @Get('categories')
   @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
   @ApiOperation({ summary: 'Get all categories' })
-  async getCategories() {
-    return this.catalogService.getAllCategories();
+  async getCategories(@CurrentUser() user: any) {
+    return this.catalogService.getAllCategories(user.tenantId);
   }
 
   @Post('categories')
   @Roles(UserRole.OWNER)
   @ApiOperation({ summary: 'Create category' })
-  async createCategory(@Body() data: { name: string }) {
-    return this.catalogService.createCategory(data.name);
+  async createCategory(@CurrentUser() user: any, @Body() data: { name: string }) {
+    return this.catalogService.createCategory(user.tenantId, data.name);
   }
 
   @Put('categories/:id')
@@ -84,15 +84,15 @@ export class CatalogController {
   @Get('brands')
   @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
   @ApiOperation({ summary: 'Get all brands' })
-  async getBrands() {
-    return this.catalogService.getAllBrands();
+  async getBrands(@CurrentUser() user: any) {
+    return this.catalogService.getAllBrands(user.tenantId);
   }
 
   @Post('brands')
   @Roles(UserRole.OWNER)
   @ApiOperation({ summary: 'Create brand' })
-  async createBrand(@Body() data: { name: string }) {
-    return this.catalogService.createBrand(data.name);
+  async createBrand(@CurrentUser() user: any, @Body() data: { name: string }) {
+    return this.catalogService.createBrand(user.tenantId, data.name);
   }
 
   @Put('brands/:id')
