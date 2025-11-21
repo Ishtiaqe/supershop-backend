@@ -14,7 +14,6 @@ import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, RefreshTokenDto, ChangePasswordDto } from './dto/auth.dto';
-import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
 @ApiTags('Authentication')
@@ -59,26 +58,12 @@ export class AuthController {
     return this.authService.logout(refreshTokenDto.refreshToken);
   }
 
-  @Get('google')
-  @UseGuards(GoogleAuthGuard)
-  @ApiOperation({ summary: 'Initiate Google OAuth flow' })
-  async googleAuth() {
-    // Guard redirects to Google
-  }
-
-  @Get('google/callback')
-  @UseGuards(GoogleAuthGuard)
-  @ApiOperation({ summary: 'Google OAuth callback' })
-  async googleAuthRedirect(@Req() req, @Res() res: Response) {
-    const user = req.user;
-
-    // Find or create user in database
-    const result = await this.authService.googleLogin(user);
-
-    // Redirect to frontend with tokens
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const redirectUrl = `${frontendUrl}/auth/callback?token=${result.accessToken}&refresh=${result.refreshToken}`;
-
-    return res.redirect(redirectUrl);
+  @Post('firebase')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Authenticate with Firebase token' })
+  @ApiResponse({ status: 200, description: 'Authentication successful' })
+  @ApiResponse({ status: 401, description: 'Invalid Firebase token' })
+  async firebaseAuth(@Body() body: { idToken: string }) {
+    return this.authService.firebaseAuth(body.idToken);
   }
 }
