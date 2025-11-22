@@ -25,11 +25,23 @@ export class SalesService {
         throw new BadRequestException('Insufficient stock');
       }
 
-      totalAmount += item.unitPrice * item.quantity;
-      totalProfit += (item.unitPrice - inventory.purchasePrice) * item.quantity;
+      const discountPercent = item.discount || 0;
+      if (discountPercent < 0 || discountPercent > 100) {
+        throw new BadRequestException('Discount must be between 0 and 100%');
+      }
+
+      const effectivePrice = item.unitPrice * (1 - discountPercent / 100);
+      const profit = effectivePrice - inventory.purchasePrice;
+      const minProfit = 0.04 * inventory.purchasePrice;
+      if (profit < minProfit) {
+        throw new BadRequestException('Discount exceeds allowed limit (must maintain at least 4% profit on purchase price)');
+      }
+
+      totalAmount += effectivePrice * item.quantity;
+      totalProfit += profit * item.quantity;
     }
 
-    // Apply discount
+    // Apply overall discount if any
     if (saleData.discountType === 'percentage') {
       totalAmount -= (totalAmount * saleData.discountValue) / 100;
     } else if (saleData.discountType === 'fixed') {
@@ -50,7 +62,8 @@ export class SalesService {
             inventoryId: item.inventoryId,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            subtotal: item.unitPrice * item.quantity,
+            discount: item.discount || 0, // percentage
+            subtotal: (item.unitPrice * (1 - (item.discount || 0) / 100)) * item.quantity,
           })),
         },
       },

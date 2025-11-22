@@ -11,6 +11,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SalesModule } from './modules/sales/sales.module';
+import { MedicineModule } from './modules/medicine/medicine.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SalesModule } from './modules/sales/sales.module';
     InventoryModule,
     SalesModule,
     NotificationsModule,
+    MedicineModule,
     ScheduleModule.forRoot(),
   ],
 })

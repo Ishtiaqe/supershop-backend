@@ -179,3 +179,53 @@ Note: Use `&` not `?` for the second parameter in the socket path version!
 4. ✅ Start development server
 
 You're all set! 🚀
+
+---
+
+## 🔄 Workflow: Clone Production Data to Local Docker
+
+We have automated scripts to backup the production database and restore it to a local Docker container. This allows you to work with fresh real data without risking the production database.
+
+### Scripts Overview
+
+| Script | Description |
+|--------|-------------|
+| `./scripts/backup-to-sql.sh` | Dumps the database defined in `DATABASE_URL` to a SQL file in `backups/`. |
+| `./scripts/setup-local-db.sh` | Spins up a Docker container (`supershop_db_backup`), restores the latest backup, and updates `.env`. |
+| `./scripts/verify-backup.sh` | Verifies a backup by restoring it to a temporary container and checking row counts. |
+
+### Step-by-Step Guide
+
+#### 1. Backup Production
+First, ensure you are connected to production. If you are using Cloud SQL Proxy:
+
+1. **Start the proxy** (if not running):
+   ```bash
+   ./cloud-sql-proxy shomaj-817b0:asia-southeast1:supershop
+   ```
+
+2. **Run the backup script**:
+   You need to target the production database. If your `.env` is currently pointing to local, you can pass the connection string explicitly:
+   ```bash
+   # Example targeting local proxy
+   export DATABASE_URL="postgresql://supershop_user:MUJAHIDrumel123@123@127.0.0.1:5432/supershop?schema=public"
+   ./scripts/backup-to-sql.sh
+   ```
+
+#### 2. Setup Local Database
+Run the setup script to create the local container and restore the data:
+```bash
+./scripts/setup-local-db.sh
+```
+*   **Container Name:** `supershop_db_backup`
+*   **User/Pass:** `postgres` / `postgres`
+*   **Port:** `5432`
+
+> **Note:** This script will automatically update your `.env` file to point to this new local database!
+
+#### 3. Verify (Optional)
+You can verify the integrity of the backup using:
+```bash
+./scripts/verify-backup.sh
+```
+
