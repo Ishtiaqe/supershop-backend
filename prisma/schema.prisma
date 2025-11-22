@@ -243,6 +243,7 @@ model SaleItem {
   inventoryId String
   quantity    Int
   unitPrice   Float
+  discount    Float         @default(0)
   subtotal    Float
   createdAt   DateTime      @default(now())
   inventory   InventoryItem @relation(fields: [inventoryId], references: [id])
