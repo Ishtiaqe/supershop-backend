@@ -25,9 +25,23 @@ export class SalesService {
         throw new BadRequestException('Insufficient stock');
       }
 
+      // Validate unit price matches inventory retail price
+      if (Math.abs(item.unitPrice - inventory.retailPrice) > 0.01) {
+        throw new BadRequestException('Unit price does not match inventory retail price');
+      }
+
       const discountPercent = item.discount || 0;
       if (discountPercent < 0 || discountPercent > 100) {
         throw new BadRequestException('Discount must be between 0 and 100%');
+      }
+
+      // Check against inventory max discount rate
+      if (inventory.maxDiscountRate && discountPercent > inventory.maxDiscountRate) {
+        throw new BadRequestException(`Discount exceeds maximum allowed for this item (${inventory.maxDiscountRate}%)`);
+      }
+
+      if (!inventory.purchasePrice || inventory.purchasePrice <= 0) {
+        throw new BadRequestException('Invalid purchase price for inventory item');
       }
 
       const effectivePrice = item.unitPrice * (1 - discountPercent / 100);
