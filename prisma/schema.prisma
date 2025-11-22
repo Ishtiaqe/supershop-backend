@@ -68,15 +68,15 @@ model Tenant {
   theme              Json?
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
-  inventoryItems     InventoryItem[]
-  restockReceipts    RestockReceipt[]
-  sales              Sale[]
-  users              User[]
   brands             Brand[]
   categories         Category[]
-  suppliers          Supplier[]
-  products           Product[]
+  inventoryItems     InventoryItem[]
   productVariants    ProductVariant[]
+  products           Product[]
+  restockReceipts    RestockReceipt[]
+  sales              Sale[]
+  suppliers          Supplier[]
+  users              User[]
 
   @@index([status])
   @@map("tenants")
@@ -85,43 +85,43 @@ model Tenant {
 model Category {
   id        String    @id @default(uuid())
   name      String
-  tenantId  String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  tenantId  String
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   products  Product[]
 
-  @@index([tenantId])
   @@unique([name, tenantId])
+  @@index([tenantId])
   @@map("categories")
 }
 
 model Brand {
   id        String    @id @default(uuid())
   name      String
-  tenantId  String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  tenantId  String
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   products  Product[]
 
-  @@index([tenantId])
   @@unique([name, tenantId])
+  @@index([tenantId])
   @@map("brands")
 }
 
 model Supplier {
   id              String           @id @default(uuid())
   name            String
-  tenantId        String
   contactPerson   String?
   phone           String?
   email           String?
   address         String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId        String
   restockReceipts RestockReceipt[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@map("suppliers")
@@ -130,7 +130,6 @@ model Supplier {
 model Product {
   id               String           @id @default(uuid())
   name             String
-  tenantId         String
   description      String?
   brandId          String?
   categoryId       String?
@@ -139,10 +138,11 @@ model Product {
   genericName      String?
   manufacturerName String?
   productType      ProductType      @default(GENERAL)
-  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId         String
   variants         ProductVariant[]
   brand            Brand?           @relation(fields: [brandId], references: [id])
   category         Category?        @relation(fields: [categoryId], references: [id])
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([name])
@@ -155,19 +155,19 @@ model Product {
 model ProductVariant {
   id             String          @id @default(uuid())
   productId      String
-  tenantId       String
   variantName    String
   sku            String
   retailPrice    Float
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
   inventoryItems InventoryItem[]
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@unique([sku, tenantId])
   @@index([tenantId])
   @@index([productId])
-  @@unique([sku, tenantId])
   @@map("product_variants")
 }
 
@@ -286,4 +286,117 @@ enum DiscountType {
 enum ProductType {
   GENERAL
   MEDICINE
+}
+
+model MedicineGeneric {
+  id                                 String                @id @default(uuid())
+  genericId                          Int?                  @unique
+  genericName                        String
+  slug                               String
+  monographLink                      String?
+  indicationDescription              String?
+  therapeuticClassDescription        String?
+  pharmacologyDescription            String?
+  dosageDescription                  String?
+  administrationDescription          String?
+  interactionDescription             String?
+  contraindicationsDescription       String?
+  sideEffectsDescription             String?
+  pregnancyAndLactationDescription   String?
+  precautionsDescription             String?
+  pediatricUsageDescription          String?
+  overdoseEffectsDescription         String?
+  durationOfTreatmentDescription     String?
+  reconstitutionDescription          String?
+  storageConditionsDescription       String?
+  descriptionsCount                  Int
+  createdAt                          DateTime              @default(now())
+  updatedAt                          DateTime              @updatedAt
+  drugClassId                        String?
+  indicationId                       String?
+  medicines                          Medicine[]
+  drugClass                          MedicineDrugClass?    @relation(fields: [drugClassId], references: [id])
+  indication                         MedicineIndication?   @relation(fields: [indicationId], references: [id])
+
+  @@index([genericName])
+  @@map("medicine_generics")
+}
+
+model Medicine {
+  id               String                 @id @default(uuid())
+  brandId          Int?                   @unique
+  brandName        String
+  type             String
+  slug             String
+  dosageForm       String?
+  strength         String?
+  packageContainer String?
+  packSizeInfo     String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  genericId        String?
+  manufacturerId   String?
+  generic          MedicineGeneric?       @relation(fields: [genericId], references: [id])
+  manufacturer     MedicineManufacturer?  @relation(fields: [manufacturerId], references: [id])
+
+  @@index([brandName])
+  @@index([genericId])
+  @@index([manufacturerId])
+  @@map("medicines")
+}
+
+model MedicineManufacturer {
+  id               String    @id @default(uuid())
+  manufacturerId   Int?      @unique
+  manufacturerName String
+  slug             String
+  genericsCount    Int?
+  brandNamesCount  Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  medicines        Medicine[]
+
+  @@index([manufacturerName])
+  @@map("medicine_manufacturers")
+}
+
+model MedicineDrugClass {
+  id             String            @id @default(uuid())
+  drugClassId    Int?              @unique
+  drugClassName  String
+  slug           String
+  genericsCount  Int?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  generics       MedicineGeneric[]
+
+  @@index([drugClassName])
+  @@map("medicine_drug_classes")
+}
+
+model MedicineIndication {
+  id              String            @id @default(uuid())
+  indicationId    Int?              @unique
+  indicationName  String
+  slug            String
+  genericsCount   Int?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  generics        MedicineGeneric[]
+
+  @@index([indicationName])
+  @@map("medicine_indications")
+}
+
+model MedicineDosageForm {
+  id               String   @id @default(uuid())
+  dosageFormId     Int?     @unique
+  dosageFormName   String
+  slug             String
+  brandNamesCount  Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([dosageFormName])
+  @@map("medicine_dosage_forms")
 }
