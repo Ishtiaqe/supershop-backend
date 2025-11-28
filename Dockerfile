@@ -5,13 +5,16 @@ FROM node:20-alpine AS deps
 # Create and change to the app directory.
 WORKDIR /usr/src/app
 
+# Install build dependencies for native modules
+RUN apk add --no-cache python3 make g++
+
 # Copy application dependency manifests to the container image.
 # A wildcard is used to ensure both package.json AND package-lock.json are copied.
 # Copying this separately prevents re-running npm install on every code change.
 COPY package*.json ./
 
-# Install dependencies using npm ci for reproducibility
-RUN npm ci --silent
+# Install dependencies using npm install
+RUN npm install
 
 FROM node:20-alpine AS build
 
