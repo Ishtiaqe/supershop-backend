@@ -5,8 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { UpdateUserDto, ChangePasswordDto } from './dto/user.dto';
+import {PrismaService} from '../../common/prisma/prisma.service';
+import {UpdateUserDto, ChangePasswordDto} from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -14,7 +14,7 @@ export class UsersService {
 
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
-      where: { id },
+      where: {id},
       select: {
         id: true,
         email: true,
@@ -34,8 +34,13 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto, requestingUserId: string, requestingUserRole: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    requestingUserId: string,
+    requestingUserRole: string
+  ) {
+    const user = await this.prisma.user.findUnique({where: {id}});
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -53,7 +58,7 @@ export class UsersService {
     // Check email uniqueness if email is being updated
     if (updateUserDto.email && updateUserDto.email !== user.email) {
       const existingUser = await this.prisma.user.findUnique({
-        where: { email: updateUserDto.email },
+        where: {email: updateUserDto.email},
       });
       if (existingUser) {
         throw new BadRequestException('Email already in use');
@@ -61,7 +66,7 @@ export class UsersService {
     }
 
     const updatedUser = await this.prisma.user.update({
-      where: { id },
+      where: {id},
       data: updateUserDto,
       select: {
         id: true,
@@ -77,28 +82,31 @@ export class UsersService {
   }
 
   async delete(id: string, requestingUserRole: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findUnique({where: {id}});
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    if (requestingUserRole !== 'SUPER_ADMIN' && requestingUserRole !== 'OWNER') {
+    if (
+      requestingUserRole !== 'SUPER_ADMIN' &&
+      requestingUserRole !== 'OWNER'
+    ) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
-    await this.prisma.user.delete({ where: { id } });
+    await this.prisma.user.delete({where: {id}});
 
-    return { message: 'User deleted successfully' };
+    return {message: 'User deleted successfully'};
   }
 
   async changePassword(
     id: string,
     changePasswordDto: ChangePasswordDto,
     requestingUserId: string,
-    requestingUserRole: string,
+    requestingUserRole: string
   ) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findUnique({where: {id}});
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -106,14 +114,14 @@ export class UsersService {
 
     // Only super admin or the user themselves can change password
     if (id !== requestingUserId && requestingUserRole !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Cannot change another user\'s password');
+      throw new ForbiddenException("Cannot change another user's password");
     }
 
     // Verify current password (not required for super admin)
     if (id === requestingUserId) {
       const isPasswordValid = await bcrypt.compare(
         changePasswordDto.currentPassword,
-        user.password,
+        user.password
       );
 
       if (!isPasswordValid) {
@@ -124,10 +132,10 @@ export class UsersService {
     const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
 
     await this.prisma.user.update({
-      where: { id },
-      data: { password: hashedPassword },
+      where: {id},
+      data: {password: hashedPassword},
     });
 
-    return { message: 'Password changed successfully' };
+    return {message: 'Password changed successfully'};
   }
 }

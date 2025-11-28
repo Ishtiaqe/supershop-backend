@@ -1,8 +1,8 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { AppModule } from './app.module';
+import {NestFactory} from '@nestjs/core';
+import {ValidationPipe} from '@nestjs/common';
+import {ConfigService} from '@nestjs/config';
+import {SwaggerModule, DocumentBuilder} from '@nestjs/swagger';
+import {AppModule} from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,7 +14,9 @@ async function bootstrap() {
   app.setGlobalPrefix(`${apiPrefix}/${apiVersion}`);
 
   // CORS
-  const corsOrigins = configService.get('CORS_ORIGIN')?.split(',') || ['http://localhost:3000'];
+  const corsOrigins = configService.get('CORS_ORIGIN')?.split(',') || [
+    'http://localhost:3000',
+  ];
   app.enableCors({
     origin: corsOrigins,
     credentials: true,
@@ -29,7 +31,7 @@ async function bootstrap() {
       transformOptions: {
         enableImplicitConversion: true,
       },
-    }),
+    })
   );
 
   // Swagger documentation
@@ -45,13 +47,21 @@ async function bootstrap() {
   // Prefer the platform provided PORT environment variable (Cloud Run/Heroku) and
   // fall back to configuration or a sensible default. Ensure value is a number.
   const envPort = process.env.PORT ? Number(process.env.PORT) : undefined;
-  const configPort = configService.get('PORT') ? Number(configService.get('PORT')) : undefined;
+  const configPort = configService.get('PORT')
+    ? Number(configService.get('PORT'))
+    : undefined;
   const port = envPort || configPort || 8080;
-  console.log(`📦 Bootstrapping: effective env PORT=${process.env.PORT ?? '<not set>'}`);
+  console.log(
+    `📦 Bootstrapping: effective env PORT=${process.env.PORT ?? '<not set>'}`
+  );
   await app.listen(port, '0.0.0.0');
-  
+
   console.log(`🚀 Application is running on: http://0.0.0.0:${port}`);
-  console.log(`🔎 Effective PORT env: ${process.env.PORT ?? '<not set>'}, config PORT: ${configService.get('PORT') ?? '<not set>'}`);
+  console.log(
+    `🔎 Effective PORT env: ${process.env.PORT ?? '<not set>'}, config PORT: ${
+      configService.get('PORT') ?? '<not set>'
+    }`
+  );
   console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
 }
 

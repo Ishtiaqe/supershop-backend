@@ -4,13 +4,13 @@ import {
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
+import {JwtService} from '@nestjs/jwt';
+import {ConfigService} from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as admin from 'firebase-admin';
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { RegisterDto, LoginDto } from './dto/auth.dto';
+import {SecretManagerServiceClient} from '@google-cloud/secret-manager';
+import {PrismaService} from '../../common/prisma/prisma.service';
+import {RegisterDto, LoginDto} from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -19,7 +19,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-    private configService: ConfigService,
+    private configService: ConfigService
   ) {
     this.secretClient = new SecretManagerServiceClient();
     this.initializeFirebase();
@@ -33,15 +33,19 @@ export class AuthService {
       const [privateKeyResponse] = await this.secretClient.accessSecretVersion({
         name: `projects/${projectId}/secrets/FIREBASE_PRIVATE_KEY/versions/latest`,
       });
-      const [clientEmailResponse] = await this.secretClient.accessSecretVersion({
-        name: `projects/${projectId}/secrets/FIREBASE_CLIENT_EMAIL/versions/latest`,
-      });
+      const [clientEmailResponse] = await this.secretClient.accessSecretVersion(
+        {
+          name: `projects/${projectId}/secrets/FIREBASE_CLIENT_EMAIL/versions/latest`,
+        }
+      );
 
       const privateKey = privateKeyResponse.payload?.data?.toString();
       const clientEmail = clientEmailResponse.payload?.data?.toString();
 
       if (!privateKey || !clientEmail) {
-        throw new Error('Failed to fetch Firebase credentials from Secret Manager');
+        throw new Error(
+          'Failed to fetch Firebase credentials from Secret Manager'
+        );
       }
 
       // Initialize Firebase Admin
@@ -63,7 +67,9 @@ export class AuthService {
           admin.initializeApp({
             credential: admin.credential.cert({
               projectId: this.configService.get('FIREBASE_PROJECT_ID'),
-              privateKey: this.configService.get('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n'),
+              privateKey: this.configService
+                .get('FIREBASE_PRIVATE_KEY')
+                ?.replace(/\\n/g, '\n'),
               clientEmail: this.configService.get('FIREBASE_CLIENT_EMAIL'),
             }),
           });
@@ -73,11 +79,11 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const { email, password, fullName, phone, role, tenantId } = registerDto;
+    const {email, password, fullName, phone, role, tenantId} = registerDto;
 
     // Check if user exists
     const existingUser = await this.prisma.user.findUnique({
-      where: { email },
+      where: {email},
     });
 
     if (existingUser) {
@@ -87,7 +93,7 @@ export class AuthService {
     // Validate tenant if provided
     if (tenantId) {
       const tenant = await this.prisma.tenant.findUnique({
-        where: { id: tenantId },
+        where: {id: tenantId},
       });
       if (!tenant) {
         throw new BadRequestException('Invalid tenant ID');
@@ -120,10 +126,10 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const {email, password} = loginDto;
 
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: {email},
     });
 
     if (!user) {
@@ -157,7 +163,7 @@ export class AuthService {
       });
 
       const storedToken = await this.prisma.refreshToken.findUnique({
-        where: { token: refreshToken },
+        where: {token: refreshToken},
       });
 
       if (!storedToken || storedToken.userId !== payload.sub) {
@@ -166,7 +172,7 @@ export class AuthService {
 
       // Delete old refresh token
       await this.prisma.refreshToken.delete({
-        where: { token: refreshToken },
+        where: {token: refreshToken},
       });
 
       // Generate new tokens
@@ -197,14 +203,19 @@ export class AuthService {
       });
       return response.payload?.data?.toString() || '';
     }
-    return this.configService.get<string>('JWT_REFRESH_SECRET') || this.configService.get<string>('JWT_SECRET') || '';
+    return (
+      this.configService.get<string>('JWT_REFRESH_SECRET') ||
+      this.configService.get<string>('JWT_SECRET') ||
+      ''
+    );
   }
 
   private async generateTokens(userId: string) {
-    const payload = { sub: userId };
+    const payload = {sub: userId};
 
     const accessSecret = await this.getJWTSecret();
-    const accessExpires = this.configService.get<string>('JWT_EXPIRES_IN') || '15m';
+    const accessExpires =
+      this.configService.get<string>('JWT_EXPIRES_IN') || '15m';
     const refreshSecret = await this.getJWTRefreshSecret();
     const refreshExpires =
       this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
@@ -241,9 +252,9 @@ export class AuthService {
   async logout(refreshToken: string) {
     try {
       await this.prisma.refreshToken.delete({
-        where: { token: refreshToken },
+        where: {token: refreshToken},
       });
-      return { message: 'Logged out successfully' };
+      return {message: 'Logged out successfully'};
     } catch (error) {
       throw new BadRequestException('Invalid refresh token');
     }
@@ -252,11 +263,11 @@ export class AuthService {
   async firebaseAuth(idToken: string) {
     try {
       const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const { uid, email, name, picture } = decodedToken;
+      const {uid, email, name, picture} = decodedToken;
 
       // Check if user exists
       let user = await this.prisma.user.findUnique({
-        where: { email },
+        where: {email},
       });
 
       // If user doesn't exist, create new user
@@ -289,19 +300,25 @@ export class AuthService {
     }
   }
 
-  async changePasswordForUser(currentUserId: string, userId: string, newPassword: string) {
+  async changePasswordForUser(
+    currentUserId: string,
+    userId: string,
+    newPassword: string
+  ) {
     // Check if current user is SUPER_ADMIN
     const currentUser = await this.prisma.user.findUnique({
-      where: { id: currentUserId },
+      where: {id: currentUserId},
     });
 
     if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
-      throw new UnauthorizedException('Only super admin can change passwords for other users');
+      throw new UnauthorizedException(
+        'Only super admin can change passwords for other users'
+      );
     }
 
     // Check if target user exists
     const targetUser = await this.prisma.user.findUnique({
-      where: { id: userId },
+      where: {id: userId},
     });
 
     if (!targetUser) {
@@ -313,10 +330,10 @@ export class AuthService {
 
     // Update password
     await this.prisma.user.update({
-      where: { id: userId },
-      data: { password: hashedPassword },
+      where: {id: userId},
+      data: {password: hashedPassword},
     });
 
-    return { message: 'Password changed successfully' };
+    return {message: 'Password changed successfully'};
   }
 }

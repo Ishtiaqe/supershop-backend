@@ -6,7 +6,7 @@ import {
   IsObject,
   IsUUID,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 
 export enum TenantStatus {
   ACTIVE = 'ACTIVE',
@@ -55,11 +55,11 @@ export class CreateTenantDto {
 }
 
 export class SetupTenantDto {
-  @ApiProperty({ example: 'My Super Shop' })
+  @ApiProperty({example: 'My Super Shop'})
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ example: 'REG-2025-0001' })
+  @ApiPropertyOptional({example: 'REG-2025-0001'})
   @IsOptional()
   @IsString()
   registrationNumber?: string;
@@ -123,7 +123,7 @@ export class UpdateTenantDto {
 }
 
 export class UpdateTenantStatusDto {
-  @ApiProperty({ enum: TenantStatus })
+  @ApiProperty({enum: TenantStatus})
   @IsEnum(TenantStatus)
   status: TenantStatus;
 }
