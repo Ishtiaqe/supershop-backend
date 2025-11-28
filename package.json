@@ -29,6 +29,7 @@
   "author": "Ishtiaqe",
   "license": "MIT",
   "dependencies": {
+    "@fastify/static": "^7.0.4",
     "@google-cloud/secret-manager": "^6.1.1",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",
@@ -37,6 +38,7 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/schedule": "^6.0.1",
+    "@nestjs/serve-static": "^4.0.2",
     "@nestjs/swagger": "^7.1.1",
     "@nestjs/throttler": "^5.0.0",
     "@prisma/client": "^5.8.0",
