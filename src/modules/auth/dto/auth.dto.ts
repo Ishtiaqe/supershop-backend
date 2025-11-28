@@ -6,7 +6,7 @@ import {
   IsOptional,
   IsUUID,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 
 export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
@@ -15,25 +15,25 @@ export enum UserRole {
 }
 
 export class RegisterDto {
-  @ApiProperty({ example: 'user@example.com' })
+  @ApiProperty({example: 'user@example.com'})
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: 'SecurePassword123!' })
+  @ApiProperty({example: 'SecurePassword123!'})
   @IsString()
   @MinLength(8)
   password: string;
 
-  @ApiProperty({ example: 'John Doe' })
+  @ApiProperty({example: 'John Doe'})
   @IsString()
   fullName: string;
 
-  @ApiPropertyOptional({ example: '+8801712345678' })
+  @ApiPropertyOptional({example: '+8801712345678'})
   @IsOptional()
   @IsString()
   phone?: string;
 
-  @ApiProperty({ enum: UserRole, example: UserRole.OWNER })
+  @ApiProperty({enum: UserRole, example: UserRole.OWNER})
   @IsEnum(UserRole)
   role: UserRole;
 
@@ -44,11 +44,11 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  @ApiProperty({ example: 'user@example.com' })
+  @ApiProperty({example: 'user@example.com'})
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: 'SecurePassword123!' })
+  @ApiProperty({example: 'SecurePassword123!'})
   @IsString()
   password: string;
 }
@@ -64,7 +64,7 @@ export class ChangePasswordDto {
   @IsUUID()
   userId: string;
 
-  @ApiProperty({ example: 'NewSecurePassword123!' })
+  @ApiProperty({example: 'NewSecurePassword123!'})
   @IsString()
   @MinLength(8)
   newPassword: string;

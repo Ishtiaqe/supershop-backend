@@ -1,21 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
+import {Injectable, NotFoundException} from '@nestjs/common';
+import {PrismaService} from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class InventoryService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findAll(tenantId: string, q?: string) {
     // Allow filtering by query string for POS search/typeahead. We match itemName, variant SKU, variant name, and product name.
-    const where: any = { tenantId }
+    const where: any = {tenantId};
     if (q && q.length > 0) {
       where.AND = [
         {
           OR: [
-            { itemName: { contains: q, mode: 'insensitive' } },
-            { variant: { sku: { contains: q, mode: 'insensitive' } } },
-            { variant: { variantName: { contains: q, mode: 'insensitive' } } },
-            { variant: { product: { name: { contains: q, mode: 'insensitive' } } } },
+            {itemName: {contains: q, mode: 'insensitive'}},
+            {variant: {sku: {contains: q, mode: 'insensitive'}}},
+            {variant: {variantName: {contains: q, mode: 'insensitive'}}},
+            {variant: {product: {name: {contains: q, mode: 'insensitive'}}}},
           ],
         },
       ];
@@ -27,13 +27,13 @@ export class InventoryService {
         where,
         include: {
           variant: {
-            include: { product: true },
+            include: {product: true},
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: {createdAt: 'desc'},
         take: 20,
       });
-      return items.map(item => ({
+      return items.map((item) => ({
         ...item,
         maxDiscount: item.maxDiscountRate,
       }));
@@ -48,9 +48,9 @@ export class InventoryService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: {createdAt: 'desc'},
     });
-    return items.map(item => ({
+    return items.map((item) => ({
       ...item,
       maxDiscount: item.maxDiscountRate,
     }));
@@ -113,16 +113,20 @@ export class InventoryService {
         },
       });
 
-      const targetItem = existingItems.find(item => {
-        const itemExpiry = item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : null;
-        const newExpiry = expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : null;
+      const targetItem = existingItems.find((item) => {
+        const itemExpiry = item.expiryDate
+          ? new Date(item.expiryDate).toISOString().split('T')[0]
+          : null;
+        const newExpiry = expiryDate
+          ? new Date(expiryDate).toISOString().split('T')[0]
+          : null;
         return itemExpiry === newExpiry;
       });
 
       if (targetItem) {
         // Merge with existing item (same variant, expiry, and batch)
         const result = await this.prisma.inventoryItem.update({
-          where: { id: targetItem.id },
+          where: {id: targetItem.id},
           data: {
             quantity: targetItem.quantity + (rest.quantity || 0),
             purchasePrice: rest.purchasePrice,
@@ -164,21 +168,21 @@ export class InventoryService {
 
   async update(id: string, tenantId: string, data: any) {
     const item = await this.prisma.inventoryItem.findFirst({
-      where: { id, tenantId },
+      where: {id, tenantId},
     });
 
     if (!item) {
       throw new NotFoundException('Inventory item not found');
     }
 
-    const { maxDiscount, ...rest } = data;
-    const updateData: any = { ...rest };
+    const {maxDiscount, ...rest} = data;
+    const updateData: any = {...rest};
     if (maxDiscount !== undefined) {
       updateData.maxDiscountRate = maxDiscount;
     }
 
     const result = await this.prisma.inventoryItem.update({
-      where: { id },
+      where: {id},
       data: updateData,
     });
     return {
@@ -189,26 +193,26 @@ export class InventoryService {
 
   async delete(id: string, tenantId: string) {
     const item = await this.prisma.inventoryItem.findFirst({
-      where: { id, tenantId },
+      where: {id, tenantId},
     });
 
     if (!item) {
       throw new NotFoundException('Inventory item not found');
     }
 
-    await this.prisma.inventoryItem.delete({ where: { id } });
-    return { message: 'Inventory item deleted successfully' };
+    await this.prisma.inventoryItem.delete({where: {id}});
+    return {message: 'Inventory item deleted successfully'};
   }
 
   async getLowStock(tenantId: string, threshold: number = 20) {
     return this.prisma.inventoryItem.findMany({
       where: {
         tenantId,
-        quantity: { lte: Number(threshold) },
+        quantity: {lte: Number(threshold)},
       },
       include: {
         variant: {
-          include: { product: true },
+          include: {product: true},
         },
       },
       orderBy: {
@@ -235,7 +239,7 @@ export class InventoryService {
       },
       include: {
         variant: {
-          include: { product: true },
+          include: {product: true},
         },
       },
       orderBy: {

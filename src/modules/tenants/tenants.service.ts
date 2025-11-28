@@ -1,6 +1,16 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { CreateTenantDto, SetupTenantDto, UpdateTenantDto, UpdateTenantStatusDto } from './dto/tenant.dto';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
+import {PrismaService} from '../../common/prisma/prisma.service';
+import {
+  CreateTenantDto,
+  SetupTenantDto,
+  UpdateTenantDto,
+  UpdateTenantStatusDto,
+} from './dto/tenant.dto';
 
 @Injectable()
 export class TenantsService {
@@ -22,7 +32,7 @@ export class TenantsService {
 
   async findOne(id: string) {
     const tenant = await this.prisma.tenant.findUnique({
-      where: { id },
+      where: {id},
     });
 
     if (!tenant) {
@@ -34,8 +44,8 @@ export class TenantsService {
 
   async findByUser(userId: string) {
     const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { tenant: true },
+      where: {id: userId},
+      include: {tenant: true},
     });
 
     if (!user?.tenant) {
@@ -46,10 +56,10 @@ export class TenantsService {
   }
 
   async create(createTenantDto: CreateTenantDto) {
-    const { ownerId, ...tenantData } = createTenantDto;
+    const {ownerId, ...tenantData} = createTenantDto;
 
     // Verify owner exists
-    const owner = await this.prisma.user.findUnique({ where: { id: ownerId } });
+    const owner = await this.prisma.user.findUnique({where: {id: ownerId}});
     if (!owner) {
       throw new BadRequestException('Owner not found');
     }
@@ -64,8 +74,8 @@ export class TenantsService {
 
     // Link owner to tenant
     await this.prisma.user.update({
-      where: { id: ownerId },
-      data: { tenantId: tenant.id },
+      where: {id: ownerId},
+      data: {tenantId: tenant.id},
     });
 
     return tenant;
@@ -73,7 +83,7 @@ export class TenantsService {
 
   async setup(userId: string, setupTenantDto: SetupTenantDto) {
     // Verify user is owner without a tenant
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({where: {id: userId}});
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -94,8 +104,8 @@ export class TenantsService {
 
     // Link user to tenant
     const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: { tenantId: tenant.id },
+      where: {id: userId},
+      data: {tenantId: tenant.id},
     });
 
     return {
@@ -109,8 +119,13 @@ export class TenantsService {
     };
   }
 
-  async update(id: string, updateTenantDto: UpdateTenantDto, userTenantId: string, userRole: string) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { id } });
+  async update(
+    id: string,
+    updateTenantDto: UpdateTenantDto,
+    userTenantId: string,
+    userRole: string
+  ) {
+    const tenant = await this.prisma.tenant.findUnique({where: {id}});
 
     if (!tenant) {
       throw new NotFoundException('Tenant not found');
@@ -122,37 +137,37 @@ export class TenantsService {
     }
 
     return this.prisma.tenant.update({
-      where: { id },
+      where: {id},
       data: updateTenantDto,
     });
   }
 
   async updateStatus(id: string, updateStatusDto: UpdateTenantStatusDto) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { id } });
+    const tenant = await this.prisma.tenant.findUnique({where: {id}});
 
     if (!tenant) {
       throw new NotFoundException('Tenant not found');
     }
 
     return this.prisma.tenant.update({
-      where: { id },
-      data: { status: updateStatusDto.status },
+      where: {id},
+      data: {status: updateStatusDto.status},
     });
   }
 
   async getStats(tenantId: string) {
     const [inventoryCount, sales] = await Promise.all([
-      this.prisma.inventoryItem.count({ where: { tenantId } }),
+      this.prisma.inventoryItem.count({where: {tenantId}}),
       this.prisma.sale.aggregate({
-        where: { tenantId },
-        _sum: { totalAmount: true },
+        where: {tenantId},
+        _sum: {totalAmount: true},
       }),
     ]);
 
     const lowStockCount = await this.prisma.inventoryItem.count({
       where: {
         tenantId,
-        quantity: { lt: 20 },
+        quantity: {lt: 20},
       },
     });
 
@@ -172,9 +187,9 @@ export class TenantsService {
     const todaySales = await this.prisma.sale.aggregate({
       where: {
         tenantId,
-        saleTime: { gte: today },
+        saleTime: {gte: today},
       },
-      _sum: { totalAmount: true },
+      _sum: {totalAmount: true},
     });
 
     const thisMonth = new Date();
@@ -184,9 +199,9 @@ export class TenantsService {
     const monthSales = await this.prisma.sale.aggregate({
       where: {
         tenantId,
-        saleTime: { gte: thisMonth },
+        saleTime: {gte: thisMonth},
       },
-      _sum: { totalAmount: true },
+      _sum: {totalAmount: true},
     });
 
     return {
@@ -201,11 +216,11 @@ export class TenantsService {
   async getDashboardMetrics(tenantId: string) {
     // This is a simplified version. In production, you'd add more complex calculations
     const stats = await this.getStats(tenantId);
-    
+
     return {
       overview: {
         totalRevenue: stats.totalSalesThisMonth,
-        totalSales: await this.prisma.sale.count({ where: { tenantId } }),
+        totalSales: await this.prisma.sale.count({where: {tenantId}}),
       },
       inventory: {
         totalItems: stats.totalInventoryItems,

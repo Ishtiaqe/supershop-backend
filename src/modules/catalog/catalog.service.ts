@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
+import {Injectable} from '@nestjs/common';
+import {PrismaService} from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class CatalogService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Search catalog items (products and variants) by name
@@ -47,8 +47,8 @@ export class CatalogService {
           },
         },
         inventoryItems: {
-          where: { tenantId },
-          orderBy: { createdAt: 'desc' },
+          where: {tenantId},
+          orderBy: {createdAt: 'desc'},
           take: 1,
           select: {
             purchasePrice: true,
@@ -78,7 +78,7 @@ export class CatalogService {
    */
   async getCatalogItems(tenantId: string) {
     const variants = await this.prisma.productVariant.findMany({
-      where: { tenantId },
+      where: {tenantId},
       include: {
         product: {
           select: {
@@ -90,7 +90,7 @@ export class CatalogService {
           },
         },
         inventoryItems: {
-          where: { tenantId },
+          where: {tenantId},
           select: {
             quantity: true,
             purchasePrice: true,
@@ -129,7 +129,11 @@ export class CatalogService {
   /**
    * Find or create a product by name
    */
-  async getOrCreateProduct(tenantId: string, name: string, description?: string) {
+  async getOrCreateProduct(
+    tenantId: string,
+    name: string,
+    description?: string
+  ) {
     // Try to find existing product (case-insensitive) for this tenant
     let product = await this.prisma.product.findFirst({
       where: {
@@ -165,8 +169,8 @@ export class CatalogService {
   ) {
     // Get the product to get tenantId
     const product = await this.prisma.product.findUnique({
-      where: { id: productId },
-      select: { tenantId: true }
+      where: {id: productId},
+      select: {tenantId: true},
     });
 
     if (!product) {
@@ -202,14 +206,21 @@ export class CatalogService {
   /**
    * Create a new catalog item (product + variant)
    */
-  async createCatalogItem(tenantId: string, data: {
-    productName: string;
-    variantName: string;
-    sku: string;
-    retailPrice: number;
-    description?: string;
-  }) {
-    const product = await this.getOrCreateProduct(tenantId, data.productName, data.description);
+  async createCatalogItem(
+    tenantId: string,
+    data: {
+      productName: string;
+      variantName: string;
+      sku: string;
+      retailPrice: number;
+      description?: string;
+    }
+  ) {
+    const product = await this.getOrCreateProduct(
+      tenantId,
+      data.productName,
+      data.description
+    );
 
     const variant = await this.getOrCreateVariant(
       product.id,
@@ -241,7 +252,7 @@ export class CatalogService {
     }
   ) {
     const variant = await this.prisma.productVariant.update({
-      where: { id: variantId },
+      where: {id: variantId},
       data,
       include: {
         product: true,
@@ -266,7 +277,7 @@ export class CatalogService {
   async deleteCatalogItem(variantId: string) {
     // Check if any inventory items reference this variant
     const inventoryCount = await this.prisma.inventoryItem.count({
-      where: { variantId },
+      where: {variantId},
     });
 
     if (inventoryCount > 0) {
@@ -276,43 +287,43 @@ export class CatalogService {
     }
 
     await this.prisma.productVariant.delete({
-      where: { id: variantId },
+      where: {id: variantId},
     });
 
-    return { success: true };
+    return {success: true};
   }
 
   // ===== Category Management =====
 
   async getAllCategories(tenantId: string) {
     return this.prisma.category.findMany({
-      where: { tenantId },
+      where: {tenantId},
       include: {
         _count: {
-          select: { products: true },
+          select: {products: true},
         },
       },
-      orderBy: { name: 'asc' },
+      orderBy: {name: 'asc'},
     });
   }
 
   async createCategory(tenantId: string, name: string) {
     return this.prisma.category.create({
-      data: { tenantId, name },
+      data: {tenantId, name},
     });
   }
 
   async updateCategory(id: string, name: string) {
     return this.prisma.category.update({
-      where: { id },
-      data: { name },
+      where: {id},
+      data: {name},
     });
   }
 
   async deleteCategory(id: string) {
     // Check if any products use this category
     const productCount = await this.prisma.product.count({
-      where: { categoryId: id },
+      where: {categoryId: id},
     });
 
     if (productCount > 0) {
@@ -322,43 +333,43 @@ export class CatalogService {
     }
 
     await this.prisma.category.delete({
-      where: { id },
+      where: {id},
     });
 
-    return { success: true };
+    return {success: true};
   }
 
   // ===== Brand Management =====
 
   async getAllBrands(tenantId: string) {
     return this.prisma.brand.findMany({
-      where: { tenantId },
+      where: {tenantId},
       include: {
         _count: {
-          select: { products: true },
+          select: {products: true},
         },
       },
-      orderBy: { name: 'asc' },
+      orderBy: {name: 'asc'},
     });
   }
 
   async createBrand(tenantId: string, name: string) {
     return this.prisma.brand.create({
-      data: { tenantId, name },
+      data: {tenantId, name},
     });
   }
 
   async updateBrand(id: string, name: string) {
     return this.prisma.brand.update({
-      where: { id },
-      data: { name },
+      where: {id},
+      data: {name},
     });
   }
 
   async deleteBrand(id: string) {
     // Check if any products use this brand
     const productCount = await this.prisma.product.count({
-      where: { brandId: id },
+      where: {brandId: id},
     });
 
     if (productCount > 0) {
@@ -368,9 +379,9 @@ export class CatalogService {
     }
 
     await this.prisma.brand.delete({
-      where: { id },
+      where: {id},
     });
 
-    return { success: true };
+    return {success: true};
   }
 }

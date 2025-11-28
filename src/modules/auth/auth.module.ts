@@ -1,11 +1,11 @@
-import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { RolesGuard } from './guards/roles.guard';
+import {Module} from '@nestjs/common';
+import {JwtModule} from '@nestjs/jwt';
+import {PassportModule} from '@nestjs/passport';
+import {ConfigModule, ConfigService} from '@nestjs/config';
+import {AuthController} from './auth.controller';
+import {AuthService} from './auth.service';
+import {JwtStrategy} from './strategies/jwt.strategy';
+import {RolesGuard} from './guards/roles.guard';
 
 @Module({
   imports: [
@@ -19,10 +19,10 @@ import { RolesGuard } from './guards/roles.guard';
           const exp = configService.get<string>('JWT_EXPIRES_IN');
           // Only include expiresIn if defined and valid-looking; otherwise let jwt default
           if (exp && typeof exp === 'string' && exp.trim().length > 0) {
-            return { expiresIn: exp };
+            return {expiresIn: exp};
           }
           // Default short-lived access token
-          return { expiresIn: '15m' };
+          return {expiresIn: '15m'};
         })(),
       }),
       inject: [ConfigService],
@@ -32,4 +32,4 @@ import { RolesGuard } from './guards/roles.guard';
   providers: [AuthService, JwtStrategy, RolesGuard],
   exports: [AuthService, RolesGuard],
 })
-export class AuthModule { }
+export class AuthModule {}
