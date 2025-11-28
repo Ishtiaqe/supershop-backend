@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './common/prisma/prisma.module';
@@ -27,6 +29,15 @@ import { MedicineModule } from './modules/medicine/medicine.module';
     ]),
     PrismaModule,
     HealthModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'img'),
+      serveRoot: '/img',
+      serveStaticOptions: {
+        setHeaders: (res, path, stat) => {
+          res.set('Cache-Control', 'public, max-age=31536000, immutable');
+        },
+      },
+    }),
     // CacheModule removed — we rely on frontend sessionStorage for typeahead caching
     AuthModule,
     UsersModule,
