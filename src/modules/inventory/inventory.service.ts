@@ -1,21 +1,21 @@
-import {Injectable, NotFoundException} from '@nestjs/common';
-import {PrismaService} from '../../common/prisma/prisma.service';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class InventoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll(tenantId: string, q?: string) {
     // Allow filtering by query string for POS search/typeahead. We match itemName, variant SKU, variant name, and product name.
-    const where: any = {tenantId};
+    const where: any = { tenantId };
     if (q && q.length > 0) {
       where.AND = [
         {
           OR: [
-            {itemName: {contains: q, mode: 'insensitive'}},
-            {variant: {sku: {contains: q, mode: 'insensitive'}}},
-            {variant: {variantName: {contains: q, mode: 'insensitive'}}},
-            {variant: {product: {name: {contains: q, mode: 'insensitive'}}}},
+            { itemName: { contains: q, mode: 'insensitive' } },
+            { variant: { sku: { contains: q, mode: 'insensitive' } } },
+            { variant: { variantName: { contains: q, mode: 'insensitive' } } },
+            { variant: { product: { name: { contains: q, mode: 'insensitive' } } } },
           ],
         },
       ];
@@ -27,14 +27,17 @@ export class InventoryService {
         where,
         include: {
           variant: {
-            include: {product: true},
+            include: { product: true },
           },
         },
-        orderBy: {createdAt: 'desc'},
+        orderBy: { createdAt: 'desc' },
         take: 20,
       });
       return items.map((item) => ({
         ...item,
+        itemName: item.variant?.product
+          ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
+          : item.itemName,
         maxDiscount: item.maxDiscountRate,
       }));
     }
@@ -48,10 +51,13 @@ export class InventoryService {
           },
         },
       },
-      orderBy: {createdAt: 'desc'},
+      orderBy: { createdAt: 'desc' },
     });
     return items.map((item) => ({
       ...item,
+      itemName: item.variant?.product
+        ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
+        : item.itemName,
       maxDiscount: item.maxDiscountRate,
     }));
   }
@@ -102,6 +108,18 @@ export class InventoryService {
       variantId = variant.id;
     }
 
+    // Determine derived itemName from variant/product so inventory refers to catalog
+    let derivedItemName = itemName;
+    if (variantId) {
+      const variant = await this.prisma.productVariant.findUnique({
+        where: { id: variantId },
+        include: { product: true },
+      });
+      if (variant) {
+        derivedItemName = `${variant.product.name}${variant.variantName ? ' - ' + variant.variantName : ''}`;
+      }
+    }
+
     // If variantId is present (either provided or just created), try to find existing item to merge
     // Merge only if variantId, expiryDate, AND batchNo all match
     if (variantId) {
@@ -126,13 +144,14 @@ export class InventoryService {
       if (targetItem) {
         // Merge with existing item (same variant, expiry, and batch)
         const result = await this.prisma.inventoryItem.update({
-          where: {id: targetItem.id},
+          where: { id: targetItem.id },
           data: {
             quantity: targetItem.quantity + (rest.quantity || 0),
             purchasePrice: rest.purchasePrice,
             retailPrice: rest.retailPrice,
             maxDiscountRate: maxDiscount,
             mfgDate: mfgDate,
+            itemName: derivedItemName,
             updatedAt: new Date(),
           },
         });
@@ -152,7 +171,7 @@ export class InventoryService {
         purchasePrice: rest.purchasePrice,
         retailPrice: rest.retailPrice,
         batchNo: batchNo, // Store batch number
-        itemName: itemName, // Keep itemName for ad-hoc reference if needed, though we prefer variantId
+        itemName: derivedItemName, // Persist derived catalog name
         variantId,
         expiryDate,
         mfgDate,
@@ -168,21 +187,44 @@ export class InventoryService {
 
   async update(id: string, tenantId: string, data: any) {
     const item = await this.prisma.inventoryItem.findFirst({
-      where: {id, tenantId},
+      where: { id, tenantId },
     });
 
     if (!item) {
       throw new NotFoundException('Inventory item not found');
     }
 
-    const {maxDiscount, ...rest} = data;
-    const updateData: any = {...rest};
+    const { maxDiscount, variantId: newVariantId, itemName: clientItemName, ...rest } = data;
+    const updateData: any = { ...rest };
     if (maxDiscount !== undefined) {
       updateData.maxDiscountRate = maxDiscount;
     }
 
+    // If client changes variantId, recompute itemName using catalog data
+    if (newVariantId && newVariantId !== item.variantId) {
+      const variant = await this.prisma.productVariant.findUnique({
+        where: { id: newVariantId },
+        include: { product: true },
+      });
+      if (variant) {
+        updateData.itemName = `${variant.product.name}${variant.variantName ? ' - ' + variant.variantName : ''}`;
+        updateData.variantId = newVariantId;
+      }
+    }
+
+    // If variantId unchanged but client sent itemName, ignore it and ensure itemName is derived from variant
+    if (!newVariantId && item.variantId) {
+      const variant = await this.prisma.productVariant.findUnique({
+        where: { id: item.variantId },
+        include: { product: true },
+      });
+      if (variant) {
+        updateData.itemName = `${variant.product.name}${variant.variantName ? ' - ' + variant.variantName : ''}`;
+      }
+    }
+
     const result = await this.prisma.inventoryItem.update({
-      where: {id},
+      where: { id },
       data: updateData,
     });
     return {
@@ -193,32 +235,39 @@ export class InventoryService {
 
   async delete(id: string, tenantId: string) {
     const item = await this.prisma.inventoryItem.findFirst({
-      where: {id, tenantId},
+      where: { id, tenantId },
     });
 
     if (!item) {
       throw new NotFoundException('Inventory item not found');
     }
 
-    await this.prisma.inventoryItem.delete({where: {id}});
-    return {message: 'Inventory item deleted successfully'};
+    await this.prisma.inventoryItem.delete({ where: { id } });
+    return { message: 'Inventory item deleted successfully' };
   }
 
   async getLowStock(tenantId: string, threshold: number = 20) {
-    return this.prisma.inventoryItem.findMany({
+    const items = await this.prisma.inventoryItem.findMany({
       where: {
         tenantId,
-        quantity: {lte: Number(threshold)},
+        quantity: { lte: Number(threshold) },
       },
       include: {
         variant: {
-          include: {product: true},
+          include: { product: true },
         },
       },
       orderBy: {
         quantity: 'asc',
       },
     });
+    return items.map((item) => ({
+      ...item,
+      itemName: item.variant?.product
+        ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
+        : item.itemName,
+      maxDiscount: item.maxDiscountRate,
+    }));
   }
 
   async getExpiring(tenantId: string, days: number = 30) {
@@ -226,7 +275,7 @@ export class InventoryService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + Number(days));
 
-    return this.prisma.inventoryItem.findMany({
+    const items = await this.prisma.inventoryItem.findMany({
       where: {
         tenantId,
         expiryDate: {
@@ -239,23 +288,39 @@ export class InventoryService {
       },
       include: {
         variant: {
-          include: {product: true},
+          include: { product: true },
         },
       },
       orderBy: {
         expiryDate: 'asc',
       },
     });
+    return items.map((item) => ({
+      ...item,
+      itemName: item.variant?.product
+        ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
+        : item.itemName,
+      maxDiscount: item.maxDiscountRate,
+    }));
   }
-
   async getExpired(tenantId: string) {
-    return this.prisma.inventoryItem.findMany({
+    const items = await this.prisma.inventoryItem.findMany({
       where: {
         tenantId,
         expiryDate: {
           lt: new Date(),
         },
       },
+      include: {
+        variant: { include: { product: true } },
+      },
     });
+    return items.map((item) => ({
+      ...item,
+      itemName: item.variant?.product
+        ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
+        : item.itemName,
+      maxDiscount: item.maxDiscountRate,
+    }));
   }
 }
