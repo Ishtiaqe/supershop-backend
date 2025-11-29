@@ -87,6 +87,9 @@ export class CatalogService {
             description: true,
             category: true,
             brand: true,
+            productType: true,
+            genericName: true,
+            manufacturerName: true,
           },
         },
         inventoryItems: {
@@ -121,6 +124,9 @@ export class CatalogService {
         description: variant.product.description,
         category: variant.product.category?.name,
         brand: variant.product.brand?.name,
+        productType: variant.product.productType,
+        genericName: variant.product.genericName,
+        manufacturerName: variant.product.manufacturerName,
         currentStock: totalStock,
       };
     });
@@ -132,7 +138,10 @@ export class CatalogService {
   async getOrCreateProduct(
     tenantId: string,
     name: string,
-    description?: string
+    description?: string,
+    productType?: string,
+    genericName?: string,
+    manufacturerName?: string
   ) {
     // Try to find existing product (case-insensitive) for this tenant
     let product = await this.prisma.product.findFirst({
@@ -151,8 +160,25 @@ export class CatalogService {
           tenantId,
           name,
           description,
+          productType: (productType as any) || undefined,
+          genericName,
+          manufacturerName,
         },
       });
+    } else {
+      // If product exists but request contains additional fields, update product accordingly
+      const updateData: Record<string, unknown> = {};
+      if (description !== undefined) updateData.description = description;
+      if (productType !== undefined) updateData.productType = productType as any;
+      if (genericName !== undefined) updateData.genericName = genericName;
+      if (manufacturerName !== undefined) updateData.manufacturerName = manufacturerName;
+
+      if (Object.keys(updateData).length > 0) {
+        product = await this.prisma.product.update({
+          where: { id: product.id },
+          data: updateData,
+        });
+      }
     }
 
     return product;
@@ -214,12 +240,18 @@ export class CatalogService {
       sku: string;
       retailPrice: number;
       description?: string;
+      productType?: string;
+      genericName?: string;
+      manufacturerName?: string;
     }
   ) {
     const product = await this.getOrCreateProduct(
       tenantId,
       data.productName,
-      data.description
+      data.description,
+      data.productType,
+      data.genericName,
+      data.manufacturerName
     );
 
     const variant = await this.getOrCreateVariant(
@@ -237,6 +269,9 @@ export class CatalogService {
       sku: variant.sku,
       retailPrice: variant.retailPrice,
       description: product.description,
+      productType: product.productType,
+      genericName: product.genericName,
+      manufacturerName: product.manufacturerName,
     };
   }
 
@@ -246,18 +281,61 @@ export class CatalogService {
   async updateCatalogItem(
     variantId: string,
     data: {
+      // variant fields
       variantName?: string;
       sku?: string;
       retailPrice?: number;
+      // product fields
+      productName?: string;
+      description?: string | null;
+      productType?: string;
+      genericName?: string | null;
+      manufacturerName?: string | null;
     }
   ) {
-    const variant = await this.prisma.productVariant.update({
-      where: {id: variantId},
-      data,
-      include: {
-        product: true,
-      },
+    // Fetch variant to get productId and tenantId
+    const existing = await this.prisma.productVariant.findUnique({
+      where: { id: variantId },
+      select: { id: true, productId: true },
     });
+
+    if (!existing) {
+      throw new Error('Variant not found');
+    }
+
+    // Prepare variant update data (only allowed fields)
+    const variantUpdate: Record<string, unknown> = {};
+    if (data.variantName !== undefined) variantUpdate.variantName = data.variantName;
+    if (data.sku !== undefined) variantUpdate.sku = data.sku;
+    if (data.retailPrice !== undefined) variantUpdate.retailPrice = data.retailPrice;
+
+    // Prepare product update data
+    const productUpdate: Record<string, unknown> = {};
+    if (data.productName !== undefined) productUpdate.name = data.productName;
+    if (data.description !== undefined) productUpdate.description = data.description;
+    if (data.productType !== undefined) productUpdate.productType = data.productType as any;
+    if (data.genericName !== undefined) productUpdate.genericName = data.genericName;
+    if (data.manufacturerName !== undefined) productUpdate.manufacturerName = data.manufacturerName;
+
+    // Update product and variant in a single transaction to keep data consistent
+    const transactionOps: any[] = [];
+
+    if (Object.keys(productUpdate).length > 0) {
+      transactionOps.push(
+        this.prisma.product.update({ where: { id: existing.productId }, data: productUpdate })
+      );
+    }
+
+    transactionOps.push(
+      this.prisma.productVariant.update({
+        where: { id: variantId },
+        data: variantUpdate,
+        include: { product: true },
+      })
+    );
+
+    const results = await this.prisma.$transaction(transactionOps);
+    const variant = results[results.length - 1];
 
     return {
       variantId: variant.id,
@@ -267,6 +345,9 @@ export class CatalogService {
       sku: variant.sku,
       retailPrice: variant.retailPrice,
       description: variant.product.description,
+      productType: variant.product.productType,
+      genericName: variant.product.genericName,
+      manufacturerName: variant.product.manufacturerName,
     };
   }
 

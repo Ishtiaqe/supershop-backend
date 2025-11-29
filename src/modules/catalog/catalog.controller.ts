@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import {ApiTags, ApiOperation, ApiBearerAuth} from '@nestjs/swagger';
 import {CatalogService} from './catalog.service';
+import { CreateCatalogDto, UpdateCatalogDto } from './dto/catalog.dto';
 import {JwtAuthGuard} from '../auth/guards/jwt-auth.guard';
 import {RolesGuard} from '../auth/guards/roles.guard';
 import {Roles} from '../auth/decorators/roles.decorator';
@@ -41,15 +42,15 @@ export class CatalogController {
   @Post()
   @Roles(UserRole.OWNER)
   @ApiOperation({summary: 'Create new catalog item'})
-  async create(@CurrentUser() user: any, @Body() data: any) {
+  async create(@CurrentUser() user: any, @Body() data: CreateCatalogDto) {
     return this.catalogService.createCatalogItem(user.tenantId, data);
   }
 
   @Put(':id')
   @Roles(UserRole.OWNER)
   @ApiOperation({summary: 'Update catalog item'})
-  async update(@Param('id') id: string, @Body() data: any) {
-    return this.catalogService.updateCatalogItem(id, data);
+  async update(@Param('id') id: string, @Body() data: UpdateCatalogDto) {
+    return this.catalogService.updateCatalogItem(id, data as any);
   }
 
   @Delete(':id')
