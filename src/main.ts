@@ -3,10 +3,17 @@ import {ValidationPipe} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 import {SwaggerModule, DocumentBuilder} from '@nestjs/swagger';
 import {AppModule} from './app.module';
+// Cookie parser to read cookies from requests
+import * as cookieParser from 'cookie-parser';
+import * as Sentry from '@sentry/node';
+import { SentryExceptionFilter } from './common/filters/sentry-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+
+  // Use cookie parser so server code can access req.cookies
+  app.use(cookieParser());
 
   // Global prefix
   const apiPrefix = configService.get('API_PREFIX') || 'api';
@@ -14,13 +21,33 @@ async function bootstrap() {
   app.setGlobalPrefix(`${apiPrefix}/${apiVersion}`);
 
   // CORS
-  const corsOrigins = configService.get('CORS_ORIGIN')?.split(',') || [
+  let corsOrigins = configService.get('CORS_ORIGIN')?.split(',') || [
     'http://localhost:3000',
   ];
-  app.enableCors({
-    origin: corsOrigins,
-    credentials: true,
-  });
+
+  // In development, ensure localhost origins are allowed (useful for local testing and Playwright)
+  if ((process.env.NODE_ENV || configService.get('NODE_ENV')) === 'development') {
+    const devOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost'];
+    corsOrigins = Array.from(new Set([...corsOrigins, ...devOrigins]));
+  }
+  // For development, allow any localhost origin on any port for convenience (e.g. 3000/3001).
+  // In production, only allow exact origins listed in CORS_ORIGIN.
+  if ((process.env.NODE_ENV || configService.get('NODE_ENV')) === 'development') {
+    app.enableCors({
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true); // allow server-to-server requests or curl
+        const localhostMatch = /^https?:\/\/localhost(:\d+)?$/i;
+        const allowed = localhostMatch.test(origin) || corsOrigins.includes(origin);
+        callback(null, allowed);
+      },
+      credentials: true,
+    });
+  } else {
+    app.enableCors({
+      origin: corsOrigins,
+      credentials: true,
+    });
+  }
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -51,6 +78,23 @@ async function bootstrap() {
     ? Number(configService.get('PORT'))
     : undefined;
   const port = envPort || configPort || 8080;
+  // Init Sentry if configured
+  const sentryDsn = configService.get('SENTRY_DSN') || process.env.SENTRY_DSN;
+  if (sentryDsn) {
+    Sentry.init({
+      dsn: sentryDsn,
+      integrations: [new Sentry.Integrations.Http({ tracing: true }) as any],
+      tracesSampleRate: Number(configService.get('SENTRY_TRACES_SAMPLE_RATE') || 0.1),
+    });
+
+    // Register Sentry request handler middleware so Sentry captures incoming requests
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    app.use(Sentry.Handlers.requestHandler());
+
+    // Use the Sentry exception filter to capture any unhandled exceptions in Nest
+    app.useGlobalFilters(new SentryExceptionFilter());
+  }
   console.log(
     `📦 Bootstrapping: effective env PORT=${process.env.PORT ?? '<not set>'}`
   );
