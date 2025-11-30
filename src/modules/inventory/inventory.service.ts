@@ -76,8 +76,9 @@ export class InventoryService {
       ...rest
     } = data;
 
-    // Auto-generate batch number if not provided
-    const batchNo = providedBatchNo || `BATCH-${Date.now()}`;
+    // We'll auto-generate batch number if not provided, but the generation
+    // needs to be performed after we determine the variantId/derivedItemName
+    // so we can make the incremental number per product/variant per date.
 
     let variantId = providedVariantId;
 
@@ -118,6 +119,40 @@ export class InventoryService {
       if (variant) {
         derivedItemName = `${variant.product.name}${variant.variantName ? ' - ' + variant.variantName : ''}`;
       }
+    }
+
+    // Auto-generate batch number if not provided, using format `BATCH-dd-mm-yyyy-n`.
+    // Increment `n` for each batch for the same product/variant on the same date (start with 1).
+    let batchNo = providedBatchNo;
+    if (!batchNo) {
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yyyy = String(now.getFullYear());
+      const dateKey = `${dd}-${mm}-${yyyy}`;
+      const prefix = `BATCH-${dateKey}-`;
+
+      // Find existing batches for same variant (or same derivedItemName if variant not present) on this date
+      const existingItems = variantId
+        ? await this.prisma.inventoryItem.findMany({
+            where: { tenantId, variantId, batchNo: { startsWith: prefix } },
+          })
+        : await this.prisma.inventoryItem.findMany({
+            where: { tenantId, itemName: derivedItemName, batchNo: { startsWith: prefix } },
+          });
+
+      // Extract sequence numbers and compute max
+      let maxSeq = 0;
+      for (const item of existingItems) {
+        const bn = item.batchNo || '';
+        // Expect format BATCH-dd-mm-yyyy-n
+        const parts = bn.split('-');
+        const seqStr = parts[parts.length - 1];
+        const seqNum = Number(seqStr);
+        if (Number.isFinite(seqNum) && seqNum > maxSeq) maxSeq = seqNum;
+      }
+      const seq = maxSeq + 1;
+      batchNo = `${prefix}${seq}`;
     }
 
     // If variantId is present (either provided or just created), try to find existing item to merge
