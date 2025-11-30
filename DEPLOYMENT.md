@@ -150,6 +150,55 @@ npm install
 cp .env.example .env
 # Set local DATABASE_URL (proxy or local Postgres). URL-encode password!
 npm run start:dev
+
+## Sentry (Error Monitoring)
+
+To enable Sentry for backend error monitoring, set the `SENTRY_DSN` secret in Secret Manager and add it to your Cloud Run envs (do not commit to repo). The backend will initialize Sentry when `SENTRY_DSN` is configured.
+
+Recommended envs:
+- `SENTRY_DSN` - (secret) The Sentry DSN for your project
+- `SENTRY_TRACES_SAMPLE_RATE` - (optional) Fraction of requests to sample for performance tracing (default 0.1)
+
+Once Sentry is enabled the server will automatically capture unhandled exceptions and send them to your configured Sentry project.
+
+### Sentry usage & tracing examples (backend)
+
+Use `@sentry/node` to capture exceptions and instrument spans/traces.
+
+Exception example:
+```typescript
+import Sentry from '@sentry/node';
+
+try {
+  // some risky operation
+} catch (error) {
+  Sentry.captureException(error);
+}
+```
+
+Custom Span instrumentation (for performance traces):
+```typescript
+import Sentry from '@sentry/node';
+
+const span = Sentry.startSpan({ op: 'http.client', name: 'GET /api/users' });
+// ... perform operation
+span.finish();
+```
+
+Logger Integration:
+The backend initialization uses `Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] })` to capture server logs as Sentry logs. Use `Sentry.captureMessage` or `Sentry.captureException` for structure logging in code.
+
+## Authentication token strategy
+
+The backend sets access and refresh tokens as HttpOnly cookies. Recommended policy:
+
+- `accessToken`: short-lived (15m) cookie; `HttpOnly`, `secure`, `SameSite=None`, `domain=.shomaj.one`.
+- `refreshToken`: longer-lived cookie; stored as `HttpOnly` cookie and rotated on usage; maintain a DB table for refresh token sessions per device for revocation.
+
+Call `POST /auth/refresh` to rotate refresh tokens; the endpoint will set new cookies with the updated tokens.
+
+For CSRF protection, require a CSRF header/CSRF token when `SameSite=None` cookies are used for cross-site requests.
+
 ```
 
 If using the Cloud SQL Proxy locally:
@@ -191,6 +240,7 @@ curl -i https://api.shomaj.one/api/v1/health
 
 - In Vercel Project Settings → Environment Variables:
   - `NEXT_PUBLIC_API_BASE_URL = https://api.shomaj.one`
+  - `NEXT_PUBLIC_SENTRY_DSN` (optional; client-side Sentry DSN)
 - Redeploy the frontend.
 - CORS: backend currently accepts a single origin. Set the secret/env `CORS_ORIGIN` to your production frontend origin, e.g. `https://shomaj.one` or `https://<project>.vercel.app` and redeploy the API.
 

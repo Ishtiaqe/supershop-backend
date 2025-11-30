@@ -21,6 +21,8 @@ import {UserRole} from '../auth/dto/auth.dto';
 @Controller('sales')
 export class SalesController {
   constructor(private salesService: SalesService) {}
+  // simple in-memory cache per tenant { tenantId: { cachedAt: number, data: any } }
+  private static summaryCache: Record<string, { cachedAt: number; data: any }> = {};
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
@@ -65,6 +67,27 @@ export class SalesController {
     @Query('period') period?: string
   ) {
     return this.salesService.getGraphData(user.tenantId, period);
+  }
+
+  @Get('analytics/summary')
+  @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
+  @ApiOperation({summary: 'Get analytics summary (orders, revenue, profit, asset value)'})
+  async getAnalyticsSummary(@CurrentUser() user: any) {
+    const tenant = user.tenantId;
+    const now = Date.now();
+    const TTL = 30 * 1000; // 30 seconds
+
+    const cacheEntry = SalesController.summaryCache[tenant];
+    if (cacheEntry && now - cacheEntry.cachedAt < TTL) {
+      return cacheEntry.data;
+    }
+
+    const stats = await this.salesService.getOverallStatistics(tenant);
+    const asset = await this.salesService.getAssetValue(tenant);
+
+    const response = { ...stats, ...asset };
+    SalesController.summaryCache[tenant] = { cachedAt: now, data: response };
+    return response;
   }
 
   @Get(':id')

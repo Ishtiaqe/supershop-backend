@@ -26,6 +26,13 @@ import {CurrentUser} from '../auth/decorators/current-user.decorator';
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
+  @Get('me')
+  @ApiOperation({summary: 'Get current user profile'})
+  @ApiResponse({status: 200, description: 'Profile retrieved'})
+  async getMe(@CurrentUser() user: any) {
+    return this.usersService.findOne(user.id);
+  }
+
   @Get(':id')
   @ApiOperation({summary: 'Get user by ID'})
   @ApiResponse({status: 200, description: 'User found'})
@@ -74,12 +81,6 @@ export class UsersController {
     );
   }
 
-  @Get('me')
-  @ApiOperation({summary: 'Get current user profile'})
-  @ApiResponse({status: 200, description: 'Profile retrieved'})
-  async getMe(@CurrentUser() user: any) {
-    return this.usersService.findOne(user.id);
-  }
 
   @Put('me')
   @ApiOperation({summary: 'Update current user profile'})
