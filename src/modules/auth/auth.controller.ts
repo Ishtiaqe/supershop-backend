@@ -48,24 +48,24 @@ export class AuthController {
     const cookieDomain = this.configService.get('COOKIE_DOMAIN');
     const isProd = process.env.NODE_ENV === 'production';
     // In development, avoid setting cross-domain cookies (e.g., .shomaj.one) so they work on localhost
-    const accessCookieOptions: Record<string, unknown> = {
+    const accessCookieOptions: Record<string, any> = {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
       path: '/',
     };
     if (isProd && cookieDomain) {
-      (accessCookieOptions as any).domain = cookieDomain;
+      accessCookieOptions.domain = cookieDomain;
     }
-    const refreshCookieOptions: Record<string, unknown> = {
+    const refreshCookieOptions: Record<string, any> = {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     };
     if (isProd && cookieDomain) {
-      (refreshCookieOptions as any).domain = cookieDomain;
+      refreshCookieOptions.domain = cookieDomain;
     }
 
     res.cookie('accessToken', result.accessToken, accessCookieOptions);
@@ -88,24 +88,24 @@ export class AuthController {
     // Update cookies as with login
     const cookieDomain = this.configService.get('COOKIE_DOMAIN');
     const isProd = process.env.NODE_ENV === 'production';
-    const accessCookieOptions: Record<string, unknown> = {
+    const accessCookieOptions: Record<string, any> = {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
       path: '/',
     };
     if (isProd && cookieDomain) {
-      (accessCookieOptions as any).domain = cookieDomain;
+      accessCookieOptions.domain = cookieDomain;
     }
-    const refreshCookieOptions: Record<string, unknown> = {
+    const refreshCookieOptions: Record<string, any> = {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     };
     if (isProd && cookieDomain) {
-      (refreshCookieOptions as any).domain = cookieDomain;
+      refreshCookieOptions.domain = cookieDomain;
     }
     if (result?.accessToken) {
       res.cookie('accessToken', result.accessToken, accessCookieOptions);
@@ -126,9 +126,13 @@ export class AuthController {
     // Clear cookies
     const cookieDomain = this.configService.get('COOKIE_DOMAIN');
     const isProd = process.env.NODE_ENV === 'production';
-    const clearCookieOpts: Record<string, unknown> = { path: '/', sameSite: isProd ? 'none' : 'lax', secure: isProd };
+    const clearCookieOpts: Record<string, any> = {
+      path: '/',
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
+      secure: isProd
+    };
     if (isProd && cookieDomain) {
-      (clearCookieOpts as any).domain = cookieDomain;
+      clearCookieOpts.domain = cookieDomain;
     }
     res.clearCookie('accessToken', clearCookieOpts);
     res.clearCookie('refreshToken', clearCookieOpts);
@@ -145,24 +149,24 @@ export class AuthController {
     // Set HttpOnly cookies for access and refresh tokens
     const cookieDomain = this.configService.get('COOKIE_DOMAIN');
     const isProd = process.env.NODE_ENV === 'production';
-    const accessCookieOptions = {
+    const accessCookieOptions: Record<string, any> = {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
       path: '/',
     };
     if (isProd && cookieDomain) {
-      (accessCookieOptions as any).domain = cookieDomain;
+      accessCookieOptions.domain = cookieDomain;
     }
-    const refreshCookieOptions: Record<string, unknown> = {
+    const refreshCookieOptions: Record<string, any> = {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     };
     if (isProd && cookieDomain) {
-      (refreshCookieOptions as any).domain = cookieDomain;
+      refreshCookieOptions.domain = cookieDomain;
     }
 
     res.cookie('accessToken', result.accessToken, accessCookieOptions);
