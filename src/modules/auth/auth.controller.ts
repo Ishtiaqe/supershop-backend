@@ -121,22 +121,32 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout user' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(@Body() refreshTokenDto: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.logout(refreshTokenDto.refreshToken);
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken;
+
+    if (refreshToken) {
+      try {
+        await this.authService.logout(refreshToken);
+      } catch (e) {
+        // Ignore errors if token is already invalid
+      }
+    }
+
     // Clear cookies
     const cookieDomain = this.configService.get('COOKIE_DOMAIN');
     const isProd = process.env.NODE_ENV === 'production';
     const clearCookieOpts: Record<string, any> = {
       path: '/',
       sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-      secure: isProd
+      secure: isProd,
+      httpOnly: true,
     };
     if (isProd && cookieDomain) {
       clearCookieOpts.domain = cookieDomain;
     }
     res.clearCookie('accessToken', clearCookieOpts);
     res.clearCookie('refreshToken', clearCookieOpts);
-    return result;
+    return { success: true };
   }
 
   @Post('firebase')
