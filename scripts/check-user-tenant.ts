@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 const prisma = new PrismaClient();
 
 async function main() {
-    const email = 'owner@shop1.com';
+    const email = '';
     const user = await prisma.user.findUnique({
         where: { email },
         include: { tenant: true }
