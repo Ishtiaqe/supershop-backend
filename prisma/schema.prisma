@@ -243,15 +243,128 @@ model SaleItem {
   inventoryId String
   quantity    Int
   unitPrice   Float
-  discount    Float         @default(0)
   subtotal    Float
   createdAt   DateTime      @default(now())
+  discount    Float         @default(0)
   inventory   InventoryItem @relation(fields: [inventoryId], references: [id])
   sale        Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@index([saleId])
   @@index([inventoryId])
   @@map("sale_items")
+}
+
+model MedicineGeneric {
+  id                               String              @id @default(uuid())
+  genericId                        Int?                @unique
+  genericName                      String
+  slug                             String
+  monographLink                    String?
+  indicationDescription            String?
+  therapeuticClassDescription      String?
+  pharmacologyDescription          String?
+  dosageDescription                String?
+  administrationDescription        String?
+  interactionDescription           String?
+  contraindicationsDescription     String?
+  sideEffectsDescription           String?
+  pregnancyAndLactationDescription String?
+  precautionsDescription           String?
+  pediatricUsageDescription        String?
+  overdoseEffectsDescription       String?
+  durationOfTreatmentDescription   String?
+  reconstitutionDescription        String?
+  storageConditionsDescription     String?
+  descriptionsCount                Int
+  createdAt                        DateTime            @default(now())
+  updatedAt                        DateTime            @updatedAt
+  drugClassId                      String?
+  indicationId                     String?
+  drugClass                        MedicineDrugClass?  @relation(fields: [drugClassId], references: [id])
+  indication                       MedicineIndication? @relation(fields: [indicationId], references: [id])
+  medicines                        Medicine[]
+
+  @@index([genericName])
+  @@map("medicine_generics")
+}
+
+model Medicine {
+  id               String                @id @default(uuid())
+  brandId          Int?                  @unique
+  brandName        String
+  type             String
+  slug             String
+  dosageForm       String?
+  strength         String?
+  packageContainer String?
+  packSizeInfo     String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  genericId        String?
+  manufacturerId   String?
+  generic          MedicineGeneric?      @relation(fields: [genericId], references: [id])
+  manufacturer     MedicineManufacturer? @relation(fields: [manufacturerId], references: [id])
+
+  @@index([brandName])
+  @@index([genericId])
+  @@index([manufacturerId])
+  @@map("medicines")
+}
+
+model MedicineManufacturer {
+  id               String     @id @default(uuid())
+  manufacturerId   Int?       @unique
+  manufacturerName String
+  slug             String
+  genericsCount    Int?
+  brandNamesCount  Int?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  medicines        Medicine[]
+
+  @@index([manufacturerName])
+  @@map("medicine_manufacturers")
+}
+
+model MedicineDrugClass {
+  id            String            @id @default(uuid())
+  drugClassId   Int?              @unique
+  drugClassName String
+  slug          String
+  genericsCount Int?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  generics      MedicineGeneric[]
+
+  @@index([drugClassName])
+  @@map("medicine_drug_classes")
+}
+
+model MedicineIndication {
+  id             String            @id @default(uuid())
+  indicationId   Int?              @unique
+  indicationName String
+  slug           String
+  genericsCount  Int?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  generics       MedicineGeneric[]
+
+  @@index([indicationName])
+  @@map("medicine_indications")
+}
+
+model MedicineDosageForm {
+  id              String   @id @default(uuid())
+  dosageFormId    Int?     @unique
+  dosageFormName  String
+  slug            String
+  brandNamesCount Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([dosageFormName])
+  @@map("medicine_dosage_forms")
 }
 
 enum UserRole {
@@ -287,117 +400,4 @@ enum DiscountType {
 enum ProductType {
   GENERAL
   MEDICINE
-}
-
-model MedicineGeneric {
-  id                                 String                @id @default(uuid())
-  genericId                          Int?                  @unique
-  genericName                        String
-  slug                               String
-  monographLink                      String?
-  indicationDescription              String?
-  therapeuticClassDescription        String?
-  pharmacologyDescription            String?
-  dosageDescription                  String?
-  administrationDescription          String?
-  interactionDescription             String?
-  contraindicationsDescription       String?
-  sideEffectsDescription             String?
-  pregnancyAndLactationDescription   String?
-  precautionsDescription             String?
-  pediatricUsageDescription          String?
-  overdoseEffectsDescription         String?
-  durationOfTreatmentDescription     String?
-  reconstitutionDescription          String?
-  storageConditionsDescription       String?
-  descriptionsCount                  Int
-  createdAt                          DateTime              @default(now())
-  updatedAt                          DateTime              @updatedAt
-  drugClassId                        String?
-  indicationId                       String?
-  medicines                          Medicine[]
-  drugClass                          MedicineDrugClass?    @relation(fields: [drugClassId], references: [id])
-  indication                         MedicineIndication?   @relation(fields: [indicationId], references: [id])
-
-  @@index([genericName])
-  @@map("medicine_generics")
-}
-
-model Medicine {
-  id               String                 @id @default(uuid())
-  brandId          Int?                   @unique
-  brandName        String
-  type             String
-  slug             String
-  dosageForm       String?
-  strength         String?
-  packageContainer String?
-  packSizeInfo     String?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  genericId        String?
-  manufacturerId   String?
-  generic          MedicineGeneric?       @relation(fields: [genericId], references: [id])
-  manufacturer     MedicineManufacturer?  @relation(fields: [manufacturerId], references: [id])
-
-  @@index([brandName])
-  @@index([genericId])
-  @@index([manufacturerId])
-  @@map("medicines")
-}
-
-model MedicineManufacturer {
-  id               String    @id @default(uuid())
-  manufacturerId   Int?      @unique
-  manufacturerName String
-  slug             String
-  genericsCount    Int?
-  brandNamesCount  Int?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  medicines        Medicine[]
-
-  @@index([manufacturerName])
-  @@map("medicine_manufacturers")
-}
-
-model MedicineDrugClass {
-  id             String            @id @default(uuid())
-  drugClassId    Int?              @unique
-  drugClassName  String
-  slug           String
-  genericsCount  Int?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  generics       MedicineGeneric[]
-
-  @@index([drugClassName])
-  @@map("medicine_drug_classes")
-}
-
-model MedicineIndication {
-  id              String            @id @default(uuid())
-  indicationId    Int?              @unique
-  indicationName  String
-  slug            String
-  genericsCount   Int?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  generics        MedicineGeneric[]
-
-  @@index([indicationName])
-  @@map("medicine_indications")
-}
-
-model MedicineDosageForm {
-  id               String   @id @default(uuid())
-  dosageFormId     Int?     @unique
-  dosageFormName   String
-  slug             String
-  brandNamesCount  Int?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@index([dosageFormName])
-  @@map("medicine_dosage_forms")
 }
