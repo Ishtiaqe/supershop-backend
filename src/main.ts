@@ -3,16 +3,15 @@ import {ValidationPipe} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 import {SwaggerModule, DocumentBuilder} from '@nestjs/swagger';
 import {AppModule} from './app.module';
-// Cookie parser to read cookies from requests
-import * as cookieParser from 'cookie-parser';
 import * as Sentry from '@sentry/node';
 import { SentryExceptionFilter } from './common/filters/sentry-exception.filter';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // Use cookie parser so server code can access req.cookies
+  // Cookie parser middleware
   app.use(cookieParser());
 
   // Global prefix

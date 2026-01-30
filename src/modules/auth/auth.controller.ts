@@ -27,6 +27,17 @@ import { CurrentUser } from './decorators/current-user.decorator';
 export class AuthController {
   constructor(private authService: AuthService, private configService: ConfigService) { }
 
+  private getCookieOptions() {
+    const isProduction = this.configService.get('NODE_ENV') === 'production';
+    return {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax' as const,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    };
+  }
+
   @Post('register')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Register a new user' })
@@ -42,38 +53,18 @@ export class AuthController {
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
     const result = await this.authService.login(loginDto);
-    // Set HttpOnly cookies for access and refresh tokens
-    const cookieDomain = this.configService.get('COOKIE_DOMAIN');
-    const isProd = process.env.NODE_ENV === 'production';
-    // In development, avoid setting cross-domain cookies (e.g., .shomaj.one) so they work on localhost
-    const accessCookieOptions: Record<string, any> = {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-      path: '/',
-    };
-    if (isProd && cookieDomain) {
-      accessCookieOptions.domain = cookieDomain;
-    }
-    const refreshCookieOptions: Record<string, any> = {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
-    if (isProd && cookieDomain) {
-      refreshCookieOptions.domain = cookieDomain;
-    }
-
-    res.cookie('accessToken', result.accessToken, accessCookieOptions);
-    res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
-
-    return {
-      user: result.user,
-    };
+    
+    // Set refresh token as httpOnly cookie
+    response.cookie('refreshToken', result.refreshToken, this.getCookieOptions());
+    
+    // Return user and access token only (not refresh token)
+    const { refreshToken, ...responseData } = result;
+    return responseData;
   }
 
   @Post('refresh')
@@ -82,47 +73,34 @@ export class AuthController {
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = refreshTokenDto?.refreshToken || req.cookies?.refreshToken;
+  async refresh(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const refreshToken = request.cookies?.refreshToken;
+    if (!refreshToken) {
+      throw new Error('Refresh token is required');
+    }
+    
     const result = await this.authService.refreshToken(refreshToken);
-    // Update cookies as with login
-    const cookieDomain = this.configService.get('COOKIE_DOMAIN');
-    const isProd = process.env.NODE_ENV === 'production';
-    const accessCookieOptions: Record<string, any> = {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-      path: '/',
-    };
-    if (isProd && cookieDomain) {
-      accessCookieOptions.domain = cookieDomain;
-    }
-    const refreshCookieOptions: Record<string, any> = {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    };
-    if (isProd && cookieDomain) {
-      refreshCookieOptions.domain = cookieDomain;
-    }
-    if (result?.accessToken) {
-      res.cookie('accessToken', result.accessToken, accessCookieOptions);
-    }
-    if (result?.refreshToken) {
-      res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
-    }
-    // return tokens for backward compatibility (optional)
-    return result;
+    
+    // Set new refresh token as httpOnly cookie
+    response.cookie('refreshToken', result.refreshToken, this.getCookieOptions());
+    
+    // Return only access token (not refresh token)
+    const { refreshToken: newRefreshToken, ...responseData } = result;
+    return responseData;
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout user' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken;
+  async logout(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const refreshToken = request.cookies?.refreshToken;
 
     if (refreshToken) {
       try {
@@ -132,20 +110,9 @@ export class AuthController {
       }
     }
 
-    // Clear cookies
-    const cookieDomain = this.configService.get('COOKIE_DOMAIN');
-    const isProd = process.env.NODE_ENV === 'production';
-    const clearCookieOpts: Record<string, any> = {
-      path: '/',
-      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-      secure: isProd,
-      httpOnly: true,
-    };
-    if (isProd && cookieDomain) {
-      clearCookieOpts.domain = cookieDomain;
-    }
-    res.clearCookie('accessToken', clearCookieOpts);
-    res.clearCookie('refreshToken', clearCookieOpts);
+    // Clear the refresh token cookie
+    response.clearCookie('refreshToken', { path: '/' });
+
     return { success: true };
   }
 
@@ -154,36 +121,17 @@ export class AuthController {
   @ApiOperation({ summary: 'Authenticate with Firebase token' })
   @ApiResponse({ status: 200, description: 'Authentication successful' })
   @ApiResponse({ status: 401, description: 'Invalid Firebase token' })
-  async firebaseAuth(@Body() body: { idToken: string }, @Res({ passthrough: true }) res: Response) {
+  async firebaseAuth(
+    @Body() body: { idToken: string },
+    @Res({ passthrough: true }) response: Response,
+  ) {
     const result = await this.authService.firebaseAuth(body.idToken);
-    // Set HttpOnly cookies for access and refresh tokens
-    const cookieDomain = this.configService.get('COOKIE_DOMAIN');
-    const isProd = process.env.NODE_ENV === 'production';
-    const accessCookieOptions: Record<string, any> = {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-      path: '/',
-    };
-    if (isProd && cookieDomain) {
-      accessCookieOptions.domain = cookieDomain;
-    }
-    const refreshCookieOptions: Record<string, any> = {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
-    if (isProd && cookieDomain) {
-      refreshCookieOptions.domain = cookieDomain;
-    }
-
-    res.cookie('accessToken', result.accessToken, accessCookieOptions);
-    res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
-
-    return {
-      user: result.user,
-    };
+    
+    // Set refresh token as httpOnly cookie
+    response.cookie('refreshToken', result.refreshToken, this.getCookieOptions());
+    
+    // Return user and access token only (not refresh token)
+    const { refreshToken, ...responseData } = result;
+    return responseData;
   }
 }
