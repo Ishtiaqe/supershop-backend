@@ -190,14 +190,12 @@ The backend initialization uses `Sentry.consoleLoggingIntegration({ levels: ['lo
 
 ## Authentication token strategy
 
-The backend sets access and refresh tokens as HttpOnly cookies. Recommended policy:
+The backend returns access and refresh tokens in the response body. Recommended policy:
 
-- `accessToken`: short-lived (15m) cookie; `HttpOnly`, `secure`, `SameSite=None`, `domain=.shomaj.one`.
-- `refreshToken`: longer-lived cookie; stored as `HttpOnly` cookie and rotated on usage; maintain a DB table for refresh token sessions per device for revocation.
+- `accessToken`: short-lived (15m) token returned in response body.
+- `refreshToken`: longer-lived token returned in response body; rotated on usage; maintain a DB table for refresh token sessions per device for revocation.
 
-Call `POST /auth/refresh` to rotate refresh tokens; the endpoint will set new cookies with the updated tokens.
-
-For CSRF protection, require a CSRF header/CSRF token when `SameSite=None` cookies are used for cross-site requests.
+Call `POST /auth/refresh` with `{ refreshToken }` in the body to rotate refresh tokens; the endpoint returns new tokens in the response.
 
 ```
 
