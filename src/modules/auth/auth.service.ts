@@ -4,13 +4,13 @@ import {
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
-import {JwtService} from '@nestjs/jwt';
-import {ConfigService} from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as admin from 'firebase-admin';
-import {SecretManagerServiceClient} from '@google-cloud/secret-manager';
-import {PrismaService} from '../../common/prisma/prisma.service';
-import {RegisterDto, LoginDto} from './dto/auth.dto';
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { RegisterDto, LoginDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -79,11 +79,11 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const {email, password, fullName, phone, role, tenantId} = registerDto;
+    const { email, password, fullName, phone, role, tenantId } = registerDto;
 
     // Check if user exists
     const existingUser = await this.prisma.user.findUnique({
-      where: {email},
+      where: { email },
     });
 
     if (existingUser) {
@@ -93,7 +93,7 @@ export class AuthService {
     // Validate tenant if provided
     if (tenantId) {
       const tenant = await this.prisma.tenant.findUnique({
-        where: {id: tenantId},
+        where: { id: tenantId },
       });
       if (!tenant) {
         throw new BadRequestException('Invalid tenant ID');
@@ -126,10 +126,10 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const {email, password} = loginDto;
+    const { email, password } = loginDto;
 
     const user = await this.prisma.user.findUnique({
-      where: {email},
+      where: { email },
     });
 
     if (!user) {
@@ -163,7 +163,7 @@ export class AuthService {
       });
 
       const storedToken = await this.prisma.refreshToken.findUnique({
-        where: {token: refreshToken},
+        where: { token: refreshToken },
       });
 
       if (!storedToken || storedToken.userId !== payload.sub) {
@@ -172,7 +172,7 @@ export class AuthService {
 
       // Delete old refresh token
       await this.prisma.refreshToken.delete({
-        where: {token: refreshToken},
+        where: { token: refreshToken },
       });
 
       // Generate new tokens
@@ -186,32 +186,55 @@ export class AuthService {
 
   private async getJWTSecret(): Promise<string> {
     if (process.env.NODE_ENV === 'production') {
-      const projectId = 'shomaj-817b0';
-      const [response] = await this.secretClient.accessSecretVersion({
-        name: `projects/${projectId}/secrets/JWT_SECRET/versions/latest`,
-      });
-      return response.payload?.data?.toString() || '';
+      try {
+        const projectId = 'shomaj-817b0';
+        const [response] = await this.secretClient.accessSecretVersion({
+          name: `projects/${projectId}/secrets/JWT_SECRET/versions/latest`,
+        });
+        const secret = response.payload?.data?.toString();
+        if (secret && secret.length > 0) {
+          return secret;
+        }
+        console.warn('[Backend] JWT_SECRET not found in Secret Manager, falling back to env var');
+      } catch (error) {
+        console.warn('[Backend] Failed to get JWT_SECRET from Secret Manager:', error.message);
+      }
     }
-    return this.configService.get<string>('JWT_SECRET') || '';
+    const envSecret = this.configService.get<string>('JWT_SECRET');
+    if (!envSecret || envSecret.length === 0) {
+      console.error('[Backend] JWT_SECRET not configured in environment variables either!');
+    }
+    return envSecret || '';
   }
 
   private async getJWTRefreshSecret(): Promise<string> {
     if (process.env.NODE_ENV === 'production') {
-      const projectId = 'shomaj-817b0';
-      const [response] = await this.secretClient.accessSecretVersion({
-        name: `projects/${projectId}/secrets/JWT_REFRESH_SECRET/versions/latest`,
-      });
-      return response.payload?.data?.toString() || '';
+      try {
+        const projectId = 'shomaj-817b0';
+        const [response] = await this.secretClient.accessSecretVersion({
+          name: `projects/${projectId}/secrets/JWT_REFRESH_SECRET/versions/latest`,
+        });
+        const secret = response.payload?.data?.toString();
+        if (secret && secret.length > 0) {
+          return secret;
+        }
+        console.warn('[Backend] JWT_REFRESH_SECRET not found in Secret Manager, falling back to env var');
+      } catch (error) {
+        console.warn('[Backend] Failed to get JWT_REFRESH_SECRET from Secret Manager:', error.message);
+      }
     }
-    return (
-      this.configService.get<string>('JWT_REFRESH_SECRET') ||
-      this.configService.get<string>('JWT_SECRET') ||
-      ''
-    );
+    const envSecret = this.configService.get<string>('JWT_REFRESH_SECRET') ||
+      this.configService.get<string>('JWT_SECRET');
+    if (!envSecret || envSecret.length === 0) {
+      console.error('[Backend] JWT_REFRESH_SECRET not configured in environment variables either!');
+    }
+    return envSecret || '';
   }
 
   private async generateTokens(userId: string) {
-    const payload = {sub: userId};
+    console.log('[Backend] generateTokens called for userId:', userId);
+
+    const payload = { sub: userId };
 
     const accessSecret = await this.getJWTSecret();
     const accessExpires =
@@ -219,6 +242,18 @@ export class AuthService {
     const refreshSecret = await this.getJWTRefreshSecret();
     const refreshExpires =
       this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
+
+    console.log('[Backend] JWT secrets retrieved, accessSecret length:', accessSecret?.length, 'refreshSecret length:', refreshSecret?.length);
+
+    // Check if secrets are available
+    if (!accessSecret || accessSecret.length === 0) {
+      console.error('[Backend] JWT_ACCESS_SECRET is not configured!');
+      throw new Error('JWT access secret not configured');
+    }
+    if (!refreshSecret || refreshSecret.length === 0) {
+      console.error('[Backend] JWT_REFRESH_SECRET is not configured!');
+      throw new Error('JWT refresh secret not configured');
+    }
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
@@ -230,6 +265,8 @@ export class AuthService {
         expiresIn: refreshExpires,
       }),
     ]);
+
+    console.log('[Backend] JWT tokens signed, accessToken exists:', !!accessToken, 'refreshToken exists:', !!refreshToken);
 
     // Store refresh token
     const expiresAt = new Date();
@@ -243,18 +280,24 @@ export class AuthService {
       },
     });
 
-    return {
+    console.log('[Backend] Refresh token stored in database');
+
+    const result = {
       accessToken,
       refreshToken,
     };
+
+    console.log('[Backend] generateTokens returning:', { hasAccess: !!result.accessToken, hasRefresh: !!result.refreshToken });
+
+    return result;
   }
 
   async logout(refreshToken: string) {
     try {
       await this.prisma.refreshToken.delete({
-        where: {token: refreshToken},
+        where: { token: refreshToken },
       });
-      return {message: 'Logged out successfully'};
+      return { message: 'Logged out successfully' };
     } catch (error) {
       throw new BadRequestException('Invalid refresh token');
     }
@@ -262,13 +305,16 @@ export class AuthService {
 
   async firebaseAuth(idToken: string) {
     try {
+      console.log('[Backend] Starting Firebase auth for token:', idToken.substring(0, 20) + '...');
       const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const {uid, email, name, picture} = decodedToken;
+      const { uid, email, name, picture } = decodedToken;
+      console.log('[Backend] Firebase token verified for user:', email);
 
       // Check if user exists
       let user = await this.prisma.user.findUnique({
-        where: {email},
+        where: { email },
       });
+      console.log('[Backend] User lookup result:', user ? 'existing' : 'new');
 
       // If user doesn't exist, create new user
       if (!user) {
@@ -280,12 +326,15 @@ export class AuthService {
             role: 'EMPLOYEE', // Default role
           },
         });
+        console.log('[Backend] New user created:', user.id);
       }
 
       // Generate tokens
+      console.log('[Backend] Generating tokens for user:', user.id);
       const tokens = await this.generateTokens(user.id);
+      console.log('[Backend] Tokens generated successfully');
 
-      return {
+      const response = {
         ...tokens,
         user: {
           id: user.id,
@@ -295,7 +344,17 @@ export class AuthService {
           tenantId: user.tenantId,
         },
       };
+
+      console.log('[Backend] Firebase auth response:', {
+        hasAccessToken: !!response.accessToken,
+        hasRefreshToken: !!response.refreshToken,
+        hasUser: !!response.user,
+        userId: response.user?.id
+      });
+
+      return response;
     } catch (error) {
+      console.error('[Backend] Firebase auth error:', error);
       throw new UnauthorizedException('Invalid Firebase token');
     }
   }
@@ -307,7 +366,7 @@ export class AuthService {
   ) {
     // Check if current user is SUPER_ADMIN
     const currentUser = await this.prisma.user.findUnique({
-      where: {id: currentUserId},
+      where: { id: currentUserId },
     });
 
     if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
@@ -318,7 +377,7 @@ export class AuthService {
 
     // Check if target user exists
     const targetUser = await this.prisma.user.findUnique({
-      where: {id: userId},
+      where: { id: userId },
     });
 
     if (!targetUser) {
@@ -330,10 +389,10 @@ export class AuthService {
 
     // Update password
     await this.prisma.user.update({
-      where: {id: userId},
-      data: {password: hashedPassword},
+      where: { id: userId },
+      data: { password: hashedPassword },
     });
 
-    return {message: 'Password changed successfully'};
+    return { message: 'Password changed successfully' };
   }
 }
