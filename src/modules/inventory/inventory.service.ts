@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Injectable()
@@ -38,6 +38,7 @@ export class InventoryService {
         itemName: item.variant?.product
           ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
           : item.itemName,
+        lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
         maxDiscount: item.maxDiscountRate,
       }));
     }
@@ -58,6 +59,7 @@ export class InventoryService {
       itemName: item.variant?.product
         ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
         : item.itemName,
+      lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
       maxDiscount: item.maxDiscountRate,
     }));
   }
@@ -75,6 +77,13 @@ export class InventoryService {
       batchNo: providedBatchNo,
       ...rest
     } = data;
+
+    // Validate that retailPrice >= purchasePrice
+    if (rest.retailPrice < rest.purchasePrice) {
+      throw new BadRequestException(
+        'Retail price cannot be lower than purchase price'
+      );
+    }
 
     // We'll auto-generate batch number if not provided, but the generation
     // needs to be performed after we determine the variantId/derivedItemName
@@ -187,6 +196,8 @@ export class InventoryService {
             maxDiscountRate: maxDiscount,
             mfgDate: mfgDate,
             itemName: derivedItemName,
+            lastRestockQty: (rest.quantity || 0), // Track this restock quantity
+            lastRestockDate: new Date(), // Track restock date
             updatedAt: new Date(),
           },
         });
@@ -211,6 +222,8 @@ export class InventoryService {
         expiryDate,
         mfgDate,
         maxDiscountRate: maxDiscount,
+        lastRestockQty: rest.quantity, // Set initial restock quantity
+        lastRestockDate: new Date(), // Set initial restock date
         tenantId,
       },
     });
@@ -229,10 +242,27 @@ export class InventoryService {
       throw new NotFoundException('Inventory item not found');
     }
 
+    // Validate that retailPrice >= purchasePrice when both are present
+    const newPurchasePrice = data.purchasePrice ?? item.purchasePrice;
+    const newRetailPrice = data.retailPrice ?? item.retailPrice;
+    
+    if (newRetailPrice < newPurchasePrice) {
+      throw new BadRequestException(
+        'Retail price cannot be lower than purchase price'
+      );
+    }
+
     const { maxDiscount, variantId: newVariantId, itemName: clientItemName, ...rest } = data;
     const updateData: any = { ...rest };
     if (maxDiscount !== undefined) {
       updateData.maxDiscountRate = maxDiscount;
+    }
+
+    // If quantity is being updated and the new quantity is greater than current, track as restock
+    if (rest.quantity !== undefined && rest.quantity > item.quantity) {
+      const quantityAdded = rest.quantity - item.quantity;
+      updateData.lastRestockQty = quantityAdded;
+      updateData.lastRestockDate = new Date();
     }
 
     // If client changes variantId, recompute itemName using catalog data
@@ -301,6 +331,7 @@ export class InventoryService {
       itemName: item.variant?.product
         ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
         : item.itemName,
+      lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
       maxDiscount: item.maxDiscountRate,
     }));
   }
@@ -335,6 +366,7 @@ export class InventoryService {
       itemName: item.variant?.product
         ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
         : item.itemName,
+      lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
       maxDiscount: item.maxDiscountRate,
     }));
   }
@@ -355,6 +387,7 @@ export class InventoryService {
       itemName: item.variant?.product
         ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
         : item.itemName,
+      lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
       maxDiscount: item.maxDiscountRate,
     }));
   }

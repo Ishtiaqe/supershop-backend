@@ -15,6 +15,8 @@ import { RegisterDto, LoginDto } from './dto/auth.dto';
 @Injectable()
 export class AuthService {
   private secretClient: SecretManagerServiceClient;
+  private readonly jwtSecret: string;
+  private readonly jwtRefreshSecret: string;
 
   constructor(
     private prisma: PrismaService,
@@ -22,37 +24,45 @@ export class AuthService {
     private configService: ConfigService
   ) {
     this.secretClient = new SecretManagerServiceClient();
+    this.jwtSecret = this.configService.get<string>('JWT_SECRET') || '';
+    this.jwtRefreshSecret =
+      this.configService.get<string>('JWT_REFRESH_SECRET') || this.jwtSecret;
     this.initializeFirebase();
   }
 
   private async initializeFirebase() {
     try {
-      const projectId = 'shomaj-817b0'; // Your GCP project ID
+      const projectId =
+        this.configService.get<string>('FIREBASE_PROJECT_ID') ||
+        this.configService.get<string>('GOOGLE_CLOUD_PROJECT') ||
+        'shomaj-817b0';
 
-      // Fetch Firebase credentials from Secret Manager
-      const [privateKeyResponse] = await this.secretClient.accessSecretVersion({
-        name: `projects/${projectId}/secrets/FIREBASE_PRIVATE_KEY/versions/latest`,
-      });
-      const [clientEmailResponse] = await this.secretClient.accessSecretVersion(
-        {
-          name: `projects/${projectId}/secrets/FIREBASE_CLIENT_EMAIL/versions/latest`,
-        }
-      );
-
-      const privateKey = privateKeyResponse.payload?.data?.toString();
-      const clientEmail = clientEmailResponse.payload?.data?.toString();
+      let privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+      let clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
 
       if (!privateKey || !clientEmail) {
-        throw new Error(
-          'Failed to fetch Firebase credentials from Secret Manager'
+        const [privateKeyResponse] = await this.secretClient.accessSecretVersion({
+          name: `projects/${projectId}/secrets/FIREBASE_PRIVATE_KEY/versions/latest`,
+        });
+        const [clientEmailResponse] = await this.secretClient.accessSecretVersion(
+          {
+            name: `projects/${projectId}/secrets/FIREBASE_CLIENT_EMAIL/versions/latest`,
+          }
         );
+
+        privateKey = privateKeyResponse.payload?.data?.toString();
+        clientEmail = clientEmailResponse.payload?.data?.toString();
+      }
+
+      if (!privateKey || !clientEmail) {
+        throw new Error('Firebase credentials are not configured');
       }
 
       // Initialize Firebase Admin
       if (!admin.apps.length) {
         admin.initializeApp({
           credential: admin.credential.cert({
-            projectId: 'shomaj-817b0',
+            projectId,
             privateKey: privateKey.replace(/\\n/g, '\n'),
             clientEmail,
           }),
@@ -157,9 +167,8 @@ export class AuthService {
 
   async refreshToken(refreshToken: string) {
     try {
-      const refreshSecret = await this.getJWTRefreshSecret();
       const payload = this.jwtService.verify(refreshToken, {
-        secret: refreshSecret,
+        secret: this.getJWTRefreshSecret(),
       });
 
       const storedToken = await this.prisma.refreshToken.findUnique({
@@ -184,51 +193,18 @@ export class AuthService {
     }
   }
 
-  private async getJWTSecret(): Promise<string> {
-    if (process.env.NODE_ENV === 'production') {
-      try {
-        const projectId = 'shomaj-817b0';
-        const [response] = await this.secretClient.accessSecretVersion({
-          name: `projects/${projectId}/secrets/JWT_SECRET/versions/latest`,
-        });
-        const secret = response.payload?.data?.toString();
-        if (secret && secret.length > 0) {
-          return secret;
-        }
-        console.warn('[Backend] JWT_SECRET not found in Secret Manager, falling back to env var');
-      } catch (error) {
-        console.warn('[Backend] Failed to get JWT_SECRET from Secret Manager:', error.message);
-      }
-    }
-    const envSecret = this.configService.get<string>('JWT_SECRET');
-    if (!envSecret || envSecret.length === 0) {
+  private getJWTSecret(): string {
+    if (!this.jwtSecret || this.jwtSecret.length === 0) {
       console.error('[Backend] JWT_SECRET not configured in environment variables either!');
     }
-    return envSecret || '';
+    return this.jwtSecret;
   }
 
-  private async getJWTRefreshSecret(): Promise<string> {
-    if (process.env.NODE_ENV === 'production') {
-      try {
-        const projectId = 'shomaj-817b0';
-        const [response] = await this.secretClient.accessSecretVersion({
-          name: `projects/${projectId}/secrets/JWT_REFRESH_SECRET/versions/latest`,
-        });
-        const secret = response.payload?.data?.toString();
-        if (secret && secret.length > 0) {
-          return secret;
-        }
-        console.warn('[Backend] JWT_REFRESH_SECRET not found in Secret Manager, falling back to env var');
-      } catch (error) {
-        console.warn('[Backend] Failed to get JWT_REFRESH_SECRET from Secret Manager:', error.message);
-      }
-    }
-    const envSecret = this.configService.get<string>('JWT_REFRESH_SECRET') ||
-      this.configService.get<string>('JWT_SECRET');
-    if (!envSecret || envSecret.length === 0) {
+  private getJWTRefreshSecret(): string {
+    if (!this.jwtRefreshSecret || this.jwtRefreshSecret.length === 0) {
       console.error('[Backend] JWT_REFRESH_SECRET not configured in environment variables either!');
     }
-    return envSecret || '';
+    return this.jwtRefreshSecret;
   }
 
   private async generateTokens(userId: string) {
@@ -236,10 +212,10 @@ export class AuthService {
 
     const payload = { sub: userId };
 
-    const accessSecret = await this.getJWTSecret();
+    const accessSecret = this.getJWTSecret();
     const accessExpires =
       this.configService.get<string>('JWT_EXPIRES_IN') || '15m';
-    const refreshSecret = await this.getJWTRefreshSecret();
+    const refreshSecret = this.getJWTRefreshSecret();
     const refreshExpires =
       this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
 
@@ -305,7 +281,10 @@ export class AuthService {
 
   async firebaseAuth(idToken: string) {
     try {
-      console.log('[Backend] Starting Firebase auth for token:', idToken.substring(0, 20) + '...');
+      if (!idToken) {
+        throw new BadRequestException('ID token is required');
+      }
+      console.log('[Backend] Starting Firebase auth for token:', idToken.length > 20 ? idToken.substring(0, 20) + '...' : idToken);
       const decodedToken = await admin.auth().verifyIdToken(idToken);
       const { uid, email, name, picture } = decodedToken;
       console.log('[Backend] Firebase token verified for user:', email);

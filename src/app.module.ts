@@ -14,6 +14,9 @@ import {ScheduleModule} from '@nestjs/schedule';
 import {NotificationsModule} from './modules/notifications/notifications.module';
 import {SalesModule} from './modules/sales/sales.module';
 import {MedicineModule} from './modules/medicine/medicine.module';
+import {ShortListModule} from './modules/shortlist/shortlist.module';
+import {PdfExportModule} from './modules/pdf-export/pdf-export.module';
+import {BackupModule} from './modules/backup/backup.module';
 
 @Module({
   imports: [
@@ -47,6 +50,9 @@ import {MedicineModule} from './modules/medicine/medicine.module';
     SalesModule,
     NotificationsModule,
     MedicineModule,
+    ShortListModule,
+    PdfExportModule,
+    BackupModule,
     ScheduleModule.forRoot(),
   ],
 })
