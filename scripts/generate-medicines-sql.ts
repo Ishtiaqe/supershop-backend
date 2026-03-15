@@ -1,9 +1,7 @@
 import * as Database from 'better-sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prisma';
 const sqliteDbPath = path.join(__dirname, '..', '..', 'original_medicine_db.sqlite3');
 const outputSqlPath = path.join(__dirname, 'medicines-insert.sql');
 

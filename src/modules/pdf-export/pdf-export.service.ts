@@ -3,6 +3,13 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import * as jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
+const PDF_FONT = {
+  TITLE: 16,
+  SECTION: 12,
+  BODY: 10,
+  FOOTER: 9,
+};
+
 @Injectable()
 export class PdfExportService {
   constructor(private prisma: PrismaService) {}
@@ -32,11 +39,11 @@ export class PdfExportService {
     const margin = 10;
 
     // Title
-    doc.setFontSize(16);
+    doc.setFontSize(PDF_FONT.TITLE);
     doc.text('SHORT LIST REPORT', margin, margin + 5);
 
     // Date
-    doc.setFontSize(10);
+    doc.setFontSize(PDF_FONT.BODY);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, margin + 12);
 
     // Table data
@@ -83,7 +90,7 @@ export class PdfExportService {
         const pageHeight = pageSize.getHeight();
         const pageWidth = pageSize.getWidth();
 
-        doc.setFontSize(9);
+        doc.setFontSize(PDF_FONT.FOOTER);
         doc.text(
           `Page ${data.pageNumber} of ${pageCount}`,
           pageWidth / 2,
@@ -128,11 +135,11 @@ export class PdfExportService {
     const margin = 10;
 
     // Title
-    doc.setFontSize(16);
+    doc.setFontSize(PDF_FONT.TITLE);
     doc.text('INVENTORY REPORT', margin, margin + 5);
 
     // Date
-    doc.setFontSize(10);
+    doc.setFontSize(PDF_FONT.BODY);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, margin + 12);
 
     // Summary stats
@@ -189,7 +196,7 @@ export class PdfExportService {
         const pageSize = doc.internal.pageSize;
         const pageHeight = pageSize.getHeight();
 
-        doc.setFontSize(9);
+        doc.setFontSize(PDF_FONT.FOOTER);
         doc.text(
           `Page ${data.pageNumber} of ${pageCount}`,
           pageWidth / 2,
@@ -220,16 +227,16 @@ export class PdfExportService {
     const margin = 10;
 
     // Title
-    doc.setFontSize(16);
+    doc.setFontSize(PDF_FONT.TITLE);
     doc.text('SHORT LIST ANALYTICS', margin, margin + 5);
 
     // Date
-    doc.setFontSize(10);
+    doc.setFontSize(PDF_FONT.BODY);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, margin + 12);
 
     // Statistics
     let yPos = margin + 25;
-    doc.setFontSize(12);
+    doc.setFontSize(PDF_FONT.SECTION);
 
     doc.text('Summary Statistics:', margin, yPos);
     yPos += 10;
