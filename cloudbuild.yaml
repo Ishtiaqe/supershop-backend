@@ -1,0 +1,32 @@
+steps:
+  # Build and push the container image using Kaniko for layer caching.
+  # This drastically speeds up incremental builds by caching NPM/Prisma layers.
+  - name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - --destination=asia-southeast1-docker.pkg.dev/shomaj-817b0/cloud-run-source-deploy/supershop-backend/supershop-backend:$COMMIT_SHA
+      - --cache=true
+      - --cache-ttl=168h # Cache layers for 7 days
+      - --cache-repo=asia-southeast1-docker.pkg.dev/shomaj-817b0/cloud-run-source-deploy/supershop-backend/supershop-backend-cache
+
+  # Deploy the updated image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - supershop-backend
+      - --image=asia-southeast1-docker.pkg.dev/shomaj-817b0/cloud-run-source-deploy/supershop-backend/supershop-backend:$COMMIT_SHA
+      - --region=asia-southeast1
+      - --platform=managed
+      - --quiet
+
+tags:
+  - supershop-backend
+  - optimized-kaniko-build
+
+images:
+  - asia-southeast1-docker.pkg.dev/shomaj-817b0/cloud-run-source-deploy/supershop-backend/supershop-backend:$COMMIT_SHA
+
+options:
+  machineType: 'E2_HIGHCPU_8' # Optional: Speeds up heavy node/prisma compilation further. Switch to 'UNSPECIFIED' if you prefer standard VMs.
+  logging: CLOUD_LOGGING_ONLY
