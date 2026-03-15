@@ -22,6 +22,8 @@ model User {
   refreshTokens     RefreshToken[]
   sales             Sale[]
   tenant            Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  Expense           Expense[]
+  cashBoxEntries    CashBoxEntry[]
 
   @@index([email])
   @@index([tenantId])
@@ -55,19 +57,19 @@ model PushSubscription {
 }
 
 model Tenant {
-  id                 String           @id @default(uuid())
+  id                 String            @id @default(uuid())
   name               String
-  registrationNumber String?          @unique
+  registrationNumber String?           @unique
   addressStreet      String?
   addressCity        String?
   addressZone        String?
   latitude           Float?
   longitude          Float?
-  status             TenantStatus     @default(ACTIVE)
+  status             TenantStatus      @default(ACTIVE)
   preferences        Json?
   theme              Json?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
   brands             Brand[]
   categories         Category[]
   inventoryItems     InventoryItem[]
@@ -78,6 +80,9 @@ model Tenant {
   suppliers          Supplier[]
   users              User[]
   shortListItems     ShortList[]
+  expenseCategories  ExpenseCategory[]
+  expenses           Expense[]
+  cashBoxEntries     CashBoxEntry[]
 
   @@index([status])
   @@map("tenants")
@@ -173,26 +178,26 @@ model ProductVariant {
 }
 
 model InventoryItem {
-  id                String          @id @default(uuid())
-  tenantId          String
-  variantId         String?
-  itemName          String?
-  quantity          Int             @default(0)
-  lastRestockQty    Int?            // Last restock quantity (used for 50% rule)
-  lastRestockDate   DateTime?       // Date of last restock
-  lastMovedDate     DateTime?       // Last date item was sold (for 30-day slow item tracking)
-  purchasePrice     Float
-  retailPrice       Float
-  maxDiscountRate   Float           @default(0)
-  expiryDate        DateTime?
-  mfgDate           DateTime?
-  batchNo           String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  variant           ProductVariant? @relation(fields: [variantId], references: [id])
-  saleItems         SaleItem[]
-  shortListEntry    ShortList?
+  id              String          @id @default(uuid())
+  tenantId        String
+  variantId       String?
+  itemName        String?
+  quantity        Int             @default(0)
+  lastRestockQty  Int? // Last restock quantity (used for 50% rule)
+  lastRestockDate DateTime? // Date of last restock
+  lastMovedDate   DateTime? // Last date item was sold (for 30-day slow item tracking)
+  purchasePrice   Float
+  retailPrice     Float
+  maxDiscountRate Float           @default(0)
+  expiryDate      DateTime?
+  mfgDate         DateTime?
+  batchNo         String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  variant         ProductVariant? @relation(fields: [variantId], references: [id])
+  saleItems       SaleItem[]
+  shortListEntry  ShortList?
 
   @@index([tenantId])
   @@index([variantId])
@@ -203,17 +208,17 @@ model InventoryItem {
 }
 
 model ShortList {
-  id              String        @id @default(uuid())
-  tenantId        String
-  inventoryId     String        @unique
-  isSlowItem      Boolean       @default(false) // True if no movement in 30 days
-  addedAt         DateTime      @default(now())
-  addedBy         String?       // User ID who manually added it, or "system" for auto-added
-  reason          String?       // E.g., "50% rule", "manual", "slow_item"
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  inventory       InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
-  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id          String        @id @default(uuid())
+  tenantId    String
+  inventoryId String        @unique
+  isSlowItem  Boolean       @default(false) // True if no movement in 30 days
+  addedAt     DateTime      @default(now())
+  addedBy     String? // User ID who manually added it, or "system" for auto-added
+  reason      String? // E.g., "50% rule", "manual", "slow_item"
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  inventory   InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([isSlowItem])
@@ -425,4 +430,69 @@ enum DiscountType {
 enum ProductType {
   GENERAL
   MEDICINE
+}
+
+model ExpenseCategory {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([name, tenantId])
+  @@index([tenantId])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  tenantId    String
+  employeeId  String
+  categoryId  String
+  amount      Float
+  description String?
+  expenseDate DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employee User            @relation(fields: [employeeId], references: [id])
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([tenantId])
+  @@index([expenseDate])
+  @@index([categoryId])
+  @@map("expenses")
+}
+
+model CashBoxEntry {
+  id          String           @id @default(uuid())
+  tenantId    String
+  entryType   CashBoxEntryType
+  amount      Float
+  note        String?
+  referenceId String?          // Links to Sale.id or Expense.id
+  entryDate   DateTime         @default(now())
+  createdById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@index([tenantId])
+  @@index([entryDate])
+  @@index([entryType])
+  @@map("cash_box_entries")
+}
+
+enum CashBoxEntryType {
+  SALE_IN
+  EXPENSE_OUT
+  MANUAL_IN
+  MANUAL_OUT
 }

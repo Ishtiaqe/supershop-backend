@@ -1,12 +1,14 @@
 import {Injectable, BadRequestException} from '@nestjs/common';
 import {PrismaService} from '../../common/prisma/prisma.service';
 import {ShortListService} from '../shortlist/shortlist.service';
+import {CashBoxService} from '../cash-box/cash-box.service';
 
 @Injectable()
 export class SalesService {
   constructor(
     private prisma: PrismaService,
     private shortListService: ShortListService,
+    private cashBoxService: CashBoxService,
   ) {}
 
   async create(tenantId: string, employeeId: string, data: any) {
@@ -120,6 +122,21 @@ export class SalesService {
       // Update last moved date and trigger short list check
       await this.shortListService.updateLastMoved(item.inventoryId);
       await this.shortListService.autoCheckAndAdd(item.inventoryId, tenantId);
+    }
+
+    // Auto-create a cash box SALE_IN entry for CASH payments
+    if (!saleData.paymentMethod || saleData.paymentMethod === 'CASH') {
+      try {
+        await this.cashBoxService.createEntry(tenantId, employeeId, {
+          entryType: 'SALE_IN' as any,
+          amount: sale.totalAmount,
+          note: `Sale #${sale.receiptNumber}`,
+          referenceId: sale.id,
+          entryDate: sale.saleTime,
+        });
+      } catch (err) {
+        console.error('[CashBox] Failed to create SALE_IN entry:', err?.message);
+      }
     }
 
     return sale;
