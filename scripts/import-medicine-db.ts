@@ -1,8 +1,7 @@
 const Database = require('better-sqlite3');
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prisma';
 
 const sqliteDb = new Database('/mnt/storage/Projects/supershop/original_medicine_db.sqlite3');
-const prisma = new PrismaClient();
 
 async function importData() {
   console.log('Starting import...');
