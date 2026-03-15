@@ -53,6 +53,14 @@ export class ShortListService {
     inventoryId: string,
     tenantId: string,
   ): Promise<any> {
+    const inventory = await this.prisma.inventoryItem.findUnique({
+      where: { id: inventoryId },
+    });
+
+    if (!inventory || inventory.tenantId !== tenantId) {
+      return null;
+    }
+
     const meetsRule = await this.checkFiftyPercentRule(inventoryId);
     const isSlow = await this.checkSlowItem(inventoryId);
 
@@ -92,6 +100,14 @@ export class ShortListService {
     tenantId: string,
     userId?: string,
   ): Promise<any> {
+    const inventory = await this.prisma.inventoryItem.findUnique({
+      where: { id: inventoryId },
+    });
+
+    if (!inventory || inventory.tenantId !== tenantId) {
+      throw new BadRequestException('Inventory item not found or does not belong to your tenant');
+    }
+
     const existing = await this.prisma.shortList.findUnique({
       where: { inventoryId },
     });
@@ -200,6 +216,14 @@ export class ShortListService {
    * Mark item as slow (30+ days without sales)
    */
   async markAsSlow(inventoryId: string, tenantId: string): Promise<any> {
+    const inventory = await this.prisma.inventoryItem.findUnique({
+      where: { id: inventoryId },
+    });
+
+    if (!inventory || inventory.tenantId !== tenantId) {
+      return null;
+    }
+
     const item = await this.prisma.shortList.findUnique({
       where: { inventoryId },
     });
