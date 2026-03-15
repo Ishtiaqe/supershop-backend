@@ -17,6 +17,8 @@ import {MedicineModule} from './modules/medicine/medicine.module';
 import {ShortListModule} from './modules/shortlist/shortlist.module';
 import {PdfExportModule} from './modules/pdf-export/pdf-export.module';
 import {BackupModule} from './modules/backup/backup.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { CashBoxModule } from './modules/cash-box/cash-box.module';
 
 @Module({
   imports: [
@@ -54,6 +56,8 @@ import {BackupModule} from './modules/backup/backup.module';
     PdfExportModule,
     BackupModule,
     ScheduleModule.forRoot(),
+    ExpensesModule,
+    CashBoxModule,
   ],
 })
 export class AppModule {}
