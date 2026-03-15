@@ -85,6 +85,8 @@ curl -sS "$SERVICE_URL/api/v1/health"
 
 ## Secrets and Env
 
+Cloud Run resolves values from `--set-secrets` into environment variables for each container instance. Keep Secret Manager access out of request paths and read secrets from `ConfigService` or `process.env` inside the app.
+
 Backend consumes these secrets via ConfigService:
 - `JWT_SECRET`
 - `JWT_REFRESH_SECRET`
@@ -95,6 +97,13 @@ Backend consumes these secrets via ConfigService:
 - `GOOGLE_CLIENT_SECRET` (required for Google OAuth)
 - `GOOGLE_CALLBACK_URL` (required for Google OAuth, e.g. "https://api.shomaj.one/api/v1/auth/google/callback")
 - `CORS_ORIGIN` (comma-separated list of allowed origins, e.g. "http://localhost:3000,https://supershop.shomaj.one")
+
+For Firebase Admin, prefer the same pattern so each instance reads injected env vars instead of calling Secret Manager itself:
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY`
+
+If those envs are not injected, the backend falls back to a one-time Secret Manager lookup during startup.
 
 ### Local secret manager sync (optional)
 

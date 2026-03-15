@@ -16,6 +16,7 @@ import {RolesGuard} from '../auth/guards/roles.guard';
 import {Roles} from '../auth/decorators/roles.decorator';
 import {CurrentUser} from '../auth/decorators/current-user.decorator';
 import {UserRole} from '../auth/dto/auth.dto';
+import {CreateInventoryDto, UpdateInventoryDto} from './dto';
 
 @ApiTags('Inventory')
 @ApiBearerAuth()
@@ -35,7 +36,7 @@ export class InventoryController {
   @Post()
   @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
   @ApiOperation({summary: 'Add inventory item'})
-  async create(@CurrentUser() user: any, @Body() data: any) {
+  async create(@CurrentUser() user: any, @Body() data: CreateInventoryDto) {
     return this.inventoryService.create(user.tenantId, data);
   }
 
@@ -45,7 +46,7 @@ export class InventoryController {
   async update(
     @Param('id') id: string,
     @CurrentUser() user: any,
-    @Body() data: any
+    @Body() data: UpdateInventoryDto
   ) {
     return this.inventoryService.update(id, user.tenantId, data);
   }

@@ -1,9 +1,13 @@
 import {Injectable, BadRequestException} from '@nestjs/common';
 import {PrismaService} from '../../common/prisma/prisma.service';
+import {ShortListService} from '../shortlist/shortlist.service';
 
 @Injectable()
 export class SalesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private shortListService: ShortListService,
+  ) {}
 
   async create(tenantId: string, employeeId: string, data: any) {
     const {items, ...saleData} = data;
@@ -112,6 +116,10 @@ export class SalesService {
           },
         },
       });
+
+      // Update last moved date and trigger short list check
+      await this.shortListService.updateLastMoved(item.inventoryId);
+      await this.shortListService.autoCheckAndAdd(item.inventoryId, tenantId);
     }
 
     return sale;
