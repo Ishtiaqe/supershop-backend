@@ -16,7 +16,7 @@ export interface TokenPair {
 export interface CookieOptions {
   httpOnly: boolean;
   secure: boolean;
-  sameSite: 'Strict' | 'Lax' | 'None';
+  sameSite: 'lax' | 'strict' | 'none';
   path: string;
   maxAge?: number;
 }
@@ -68,7 +68,7 @@ export class CookieService {
     return {
       httpOnly: true,
       secure: this.isProduction,
-      sameSite: this.isProduction ? 'Strict' : 'Lax',
+      sameSite: this.isProduction ? 'strict' : 'lax',
       path: '/',
       maxAge: this.accessTokenExpiresIn,
     };
@@ -81,7 +81,7 @@ export class CookieService {
     return {
       httpOnly: true,
       secure: this.isProduction,
-      sameSite: this.isProduction ? 'Strict' : 'Lax',
+      sameSite: this.isProduction ? 'strict' : 'lax',
       path: '/',
       maxAge: this.refreshTokenExpiresIn,
     };
