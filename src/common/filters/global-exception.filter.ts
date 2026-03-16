@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import * as Sentry from '@sentry/node';
-import { AppException, ErrorResponse } from './app.exception';
+import { AppException, ErrorResponse } from '../exceptions/app.exception';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {

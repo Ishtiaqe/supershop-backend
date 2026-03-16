@@ -170,8 +170,8 @@ export class ForbiddenException extends AppException {
  * Sales validation error
  */
 export class SalesValidationException extends BadRequestException {
-  constructor(message: string, code: ErrorCode) {
-    super(message, code);
+  constructor(message: string, code: ErrorCode, details?: Record<string, any>) {
+    super(message, code, details);
     Object.setPrototypeOf(this, SalesValidationException.prototype);
   }
 }
@@ -180,8 +180,8 @@ export class SalesValidationException extends BadRequestException {
  * Inventory validation error
  */
 export class InventoryValidationException extends BadRequestException {
-  constructor(message: string, code: ErrorCode) {
-    super(message, code);
+  constructor(message: string, code: ErrorCode, details?: Record<string, any>) {
+    super(message, code, details);
     Object.setPrototypeOf(this, InventoryValidationException.prototype);
   }
 }
@@ -190,8 +190,8 @@ export class InventoryValidationException extends BadRequestException {
  * Catalog validation error
  */
 export class CatalogValidationException extends BadRequestException {
-  constructor(message: string, code: ErrorCode) {
-    super(message, code);
+  constructor(message: string, code: ErrorCode, details?: Record<string, any>) {
+    super(message, code, details);
     Object.setPrototypeOf(this, CatalogValidationException.prototype);
   }
 }

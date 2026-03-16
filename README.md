@@ -55,6 +55,19 @@ npm run build
 npm run start:prod
 ```
 
+4. Run local pre-deploy checks before pushing (recommended when Cloud Build trigger is enabled):
+
+```bash
+npm run predeploy:local
+```
+
+Optional deeper checks:
+
+```bash
+RUN_TESTS=1 npm run predeploy:local
+RUN_TESTS=1 DOCKER_CHECK=1 npm run predeploy:local
+```
+
 ## Docker (production-like)
 
 ```bash
