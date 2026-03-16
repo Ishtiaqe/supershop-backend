@@ -18,6 +18,7 @@ SERVICE="${SERVICE:-supershop-backend}"
 REPOSITORY_PATH="${REPOSITORY_PATH:-cloud-run-source-deploy/supershop-backend/supershop-backend}"
 TAG="${TAG:-manual-$(git rev-parse --short HEAD)}"
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY_PATH}:${TAG}"
+ENV_VARS_FILE="${ENV_VARS_FILE:-}"
 
 run_cmd() {
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
@@ -47,11 +48,13 @@ Optional env vars:
   SERVICE     (default: supershop-backend)
   TAG         (default: manual-<git-sha>)
   DRY_RUN     (set to 1 to print commands without executing them)
+  ENV_VARS_FILE (optional path to a .env style file for Cloud Run --env-vars-file)
 
 Examples:
   npm run deploy:check
   npm run deploy:cloudbuild
   TAG=release-20260316 npm run deploy:manual
+  ENV_VARS_FILE=.cloudrun.env npm run deploy:manual
   npm run deploy:health
 EOF
 }
@@ -67,13 +70,27 @@ run_cloudbuild() {
 }
 
 run_manual() {
+  local deploy_args
+  deploy_args=(
+    run deploy "${SERVICE}"
+    "--image=${IMAGE}"
+    "--region=${REGION}"
+    --platform=managed
+  )
+
+  if [[ -n "$ENV_VARS_FILE" ]]; then
+    if [[ ! -f "$ENV_VARS_FILE" ]]; then
+      echo "ENV_VARS_FILE not found: $ENV_VARS_FILE" >&2
+      exit 1
+    fi
+
+    deploy_args+=("--env-vars-file=${ENV_VARS_FILE}")
+  fi
+
   run_cmd gcloud auth configure-docker "${REGION}-docker.pkg.dev"
   run_cmd docker build -t "${IMAGE}" .
   run_cmd docker push "${IMAGE}"
-  run_cmd gcloud run deploy "${SERVICE}" \
-    --image="${IMAGE}" \
-    --region="${REGION}" \
-    --platform=managed
+  run_cmd gcloud "${deploy_args[@]}"
 }
 
 run_health() {

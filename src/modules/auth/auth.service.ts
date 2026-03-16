@@ -8,13 +8,11 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as admin from 'firebase-admin';
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
-  private secretClient: SecretManagerServiceClient;
   private readonly jwtSecret: string;
   private readonly jwtRefreshSecret: string;
 
@@ -23,7 +21,6 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService
   ) {
-    this.secretClient = new SecretManagerServiceClient();
     this.jwtSecret = this.configService.get<string>('JWT_SECRET') || '';
     this.jwtRefreshSecret =
       this.configService.get<string>('JWT_REFRESH_SECRET') || this.jwtSecret;
@@ -37,25 +34,13 @@ export class AuthService {
         this.configService.get<string>('GOOGLE_CLOUD_PROJECT') ||
         'shomaj-817b0';
 
-      let privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
-      let clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
 
       if (!privateKey || !clientEmail) {
-        const [privateKeyResponse] = await this.secretClient.accessSecretVersion({
-          name: `projects/${projectId}/secrets/FIREBASE_PRIVATE_KEY/versions/latest`,
-        });
-        const [clientEmailResponse] = await this.secretClient.accessSecretVersion(
-          {
-            name: `projects/${projectId}/secrets/FIREBASE_CLIENT_EMAIL/versions/latest`,
-          }
+        throw new Error(
+          'Firebase credentials are not configured in environment variables'
         );
-
-        privateKey = privateKeyResponse.payload?.data?.toString();
-        clientEmail = clientEmailResponse.payload?.data?.toString();
-      }
-
-      if (!privateKey || !clientEmail) {
-        throw new Error('Firebase credentials are not configured');
       }
 
       // Initialize Firebase Admin
@@ -70,21 +55,7 @@ export class AuthService {
       }
     } catch (error) {
       console.error('Failed to initialize Firebase:', error);
-      // In development, fall back to config if available
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Falling back to config for Firebase initialization');
-        if (!admin.apps.length) {
-          admin.initializeApp({
-            credential: admin.credential.cert({
-              projectId: this.configService.get('FIREBASE_PROJECT_ID'),
-              privateKey: this.configService
-                .get('FIREBASE_PRIVATE_KEY')
-                ?.replace(/\\n/g, '\n'),
-              clientEmail: this.configService.get('FIREBASE_CLIENT_EMAIL'),
-            }),
-          });
-        }
-      }
+      throw error;
     }
   }
 

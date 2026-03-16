@@ -2,12 +2,14 @@
 set -euo pipefail
 
 PROJECT=""
+REGION="asia-southeast1"
+SERVICE="supershop-backend"
 
 function usage(){
   cat <<EOF
-Usage: $0 --project PROJECT
+Usage: $0 --project PROJECT [--region REGION] [--service SERVICE]
 
-Check whether required secrets are present in Google Secret Manager.
+Check whether required environment variables are present on a Cloud Run service.
 EOF
 }
 
@@ -15,6 +17,14 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --project)
       PROJECT="$2"
+      shift 2
+      ;;
+    --region)
+      REGION="$2"
+      shift 2
+      ;;
+    --service)
+      SERVICE="$2"
       shift 2
       ;;
     -h|--help)
@@ -35,8 +45,8 @@ if [[ -z "$PROJECT" ]]; then
   exit 1
 fi
 
-# Required secret list (same as in the deployment docs)
-REQUIRED_SECRETS=(
+# Required runtime env vars for backend auth and integrations.
+REQUIRED_ENV_VARS=(
   JWT_SECRET
   JWT_REFRESH_SECRET
   JWT_EXPIRES_IN
@@ -46,6 +56,8 @@ REQUIRED_SECRETS=(
   GOOGLE_CLIENT_SECRET
   GOOGLE_CALLBACK_URL
   CORS_ORIGIN
+  FIREBASE_PRIVATE_KEY
+  FIREBASE_CLIENT_EMAIL
 )
 
 if ! command -v gcloud >/dev/null; then
@@ -53,10 +65,19 @@ if ! command -v gcloud >/dev/null; then
   exit 1
 fi
 
-# Check each secret exists
-printf "Checking Google Secret Manager for project %s\n" "$PROJECT"
-for s in "${REQUIRED_SECRETS[@]}"; do
-  if gcloud secrets describe "$s" --project "$PROJECT" >/dev/null 2>&1; then
+# Read env var names from the Cloud Run service.
+SERVICE_ENV_NAMES="$(gcloud run services describe "$SERVICE" \
+  --project "$PROJECT" \
+  --region "$REGION" \
+  --format='value(spec.template.spec.containers[0].env[].name)' || true)"
+
+if [[ -z "$SERVICE_ENV_NAMES" ]]; then
+  echo "No environment variables found on service '${SERVICE}' in ${REGION}." >&2
+fi
+
+printf "Checking Cloud Run env vars for service %s (project=%s region=%s)\n" "$SERVICE" "$PROJECT" "$REGION"
+for s in "${REQUIRED_ENV_VARS[@]}"; do
+  if printf '%s' "$SERVICE_ENV_NAMES" | tr ';' '\n' | grep -qx "$s"; then
     printf "  ✅ %s\n" "$s"
   else
     printf "  ❌ %s (MISSING)\n" "$s"
