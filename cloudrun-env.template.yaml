@@ -1,0 +1,34 @@
+# Template: cloudrun-env.template.yaml
+# Use this as a human-readable template for Cloud Run envs and migration.
+# This file is NOT applied directly by gcloud; use it as a reference and use
+# the provided one-liners below to migrate values from Secret Manager.
+
+service: supershop-backend
+region: asia-southeast1
+project: shomaj-817b0
+
+env:
+  # Recommended: reference Secret Manager (keeps secret in Secret Manager)
+  - name: FIREBASE_PRIVATE_KEY
+    secret: FIREBASE_PRIVATE_KEY  # Secret Manager secret name, version: latest
+  - name: FIREBASE_CLIENT_EMAIL
+    secret: FIREBASE_CLIENT_EMAIL
+
+  # Example public / non-sensitive values (if needed)
+  - name: JWT_EXPIRES_IN
+    value: 15m
+
+# Migration one-liners
+# 1) Reference secrets from Secret Manager (recommended):
+#
+# gcloud run services update supershop-backend \
+#   --project=shomaj-817b0 --region=asia-southeast1 \
+#   --set-secrets=FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest,FIREBASE_CLIENT_EMAIL=FIREBASE_CLIENT_EMAIL:latest
+#
+# 2) Copy secret plaintext into Cloud Run env (not recommended for long-term):
+#
+# FIREBASE_PRIVATE_KEY_ESCAPED=$(gcloud secrets versions access latest --secret=FIREBASE_PRIVATE_KEY --project=shomaj-817b0 | awk '{printf "%s\\n",$0}')
+# FIREBASE_CLIENT_EMAIL=$(gcloud secrets versions access latest --secret=FIREBASE_CLIENT_EMAIL --project=shomaj-817b0 | tr -d '\\n')
+# gcloud run services update supershop-backend \
+#   --project=shomaj-817b0 --region=asia-southeast1 \
+#   --update-env-vars="FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY_ESCAPED},FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}"

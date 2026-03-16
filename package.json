@@ -26,6 +26,7 @@
     "deploy:cloudbuild": "bash scripts/deploy-shortcuts.sh cloudbuild",
     "deploy:manual": "bash scripts/deploy-shortcuts.sh manual",
     "deploy:health": "bash scripts/deploy-shortcuts.sh health",
+    "artifacts:cleanup:apply": "gcloud artifacts repositories set-cleanup-policies cloud-run-source-deploy --location=asia-southeast1 --project=shomaj-817b0 --policy=cleanup-policy.json",
     "db:backup": "bash scripts/backup-db.sh --compress",
     "db:backup:plain": "bash scripts/backup-db.sh --plain --compress",
     "db:backup:tables": "bash scripts/backup-db.sh --plain --compress --tables",
@@ -36,7 +37,6 @@
   "license": "MIT",
   "dependencies": {
     "@fastify/static": "^7.0.4",
-    "@google-cloud/secret-manager": "^6.1.1",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",
     "@nestjs/core": "^10.0.0",
