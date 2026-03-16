@@ -3,3 +3,16 @@ node_modules
 .vscode
 .idea
 .readmes
+dist
+.git
+.gitignore
+test
+coverage
+.env*
+*.log
+.DS_Store
+backups
+playwright-report
+k8s
+scripts
+*.md

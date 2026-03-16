@@ -7,6 +7,7 @@ steps:
       - --cache=true
       - --cache-ttl=168h # Cache layers for 7 days
       - --cache-repo=asia-southeast1-docker.pkg.dev/shomaj-817b0/cloud-run-source-deploy/supershop-backend/supershop-backend-cache
+      - --network=host
 
   # Deploy the updated image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'

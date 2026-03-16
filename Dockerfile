@@ -13,8 +13,8 @@ RUN apk add --no-cache python3 make g++
 # Copying this separately prevents re-running npm install on every code change.
 COPY package*.json ./
 
-# Install dependencies using npm install
-RUN npm install
+# Install dependencies using npm ci for faster, deterministic builds
+RUN npm ci --only=prod
 
 FROM node:20-alpine AS build
 
@@ -25,7 +25,7 @@ RUN apk add --no-cache openssl
 COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY . .
 
-RUN npx prisma generate && npm run build
+RUN npm ci && npx prisma generate && npm run build
 
 FROM node:20-alpine AS production
 
