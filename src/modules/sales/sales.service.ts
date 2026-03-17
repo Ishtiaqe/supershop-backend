@@ -1,4 +1,5 @@
 import {Injectable, BadRequestException} from '@nestjs/common';
+import {randomBytes} from 'crypto';
 import {PrismaService} from '../../common/prisma/prisma.service';
 import {ShortListService} from '../shortlist/shortlist.service';
 import {CashBoxService} from '../cash-box/cash-box.service';
@@ -87,7 +88,7 @@ export class SalesService {
         employeeId,
         totalAmount,
         totalProfit,
-        receiptNumber: `RCP-${Date.now()}`,
+        receiptNumber: `${Date.now()}`,
         items: {
           create: items.map((item: any) => ({
             inventoryId: item.inventoryId,
