@@ -28,6 +28,11 @@ export class PdfExportService {
                 product: true,
               },
             },
+            saleItems: {
+              include: {
+                sale: true,
+              },
+            },
           },
         },
       },
@@ -53,11 +58,24 @@ export class PdfExportService {
     // Table data
     const tableData = items.map((item) => [
       item.inventory.itemName || item.inventory.variant?.product?.name || 'N/A',
-      item.inventory.variant?.sku || 'N/A',
       item.inventory.quantity.toString(),
-      item.inventory.lastRestockQty?.toString() || 'N/A',
-      item.isSlowItem ? 'Yes' : 'No',
-      item.reason,
+      item.inventory.purchasePrice?.toFixed(2) || 'N/A',
+      (() => {
+        // Calculate 30 day sales
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+        let sales = 0;
+        for (const saleItem of item.inventory.saleItems || []) {
+          if (saleItem.sale && saleItem.sale.saleTime) {
+            const saleDate = new Date(saleItem.sale.saleTime);
+            if (saleDate >= thirtyDaysAgo && saleDate <= now) {
+              sales += saleItem.quantity;
+            }
+          }
+        }
+        return sales.toString();
+      })(),
       (() => {
         const d = new Date(item.addedAt);
         const day = String(d.getDate()).padStart(2, '0');
@@ -72,11 +90,9 @@ export class PdfExportService {
       head: [
         [
           'Item Name',
-          'SKU',
           'Current Qty',
-          'Last Restock Qty',
-          'Slow Item',
-          'Reason',
+          'Last Purchase Price',
+          '30 Day Sales',
           'Added Date',
         ],
       ],
@@ -86,12 +102,10 @@ export class PdfExportService {
       theme: 'grid',
       columnStyles: {
         0: { cellWidth: 40 },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 20 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 30 },
         3: { cellWidth: 25 },
-        4: { cellWidth: 20 },
-        5: { cellWidth: 30 },
-        6: { cellWidth: 30 },
+        4: { cellWidth: 30 },
       },
       didDrawPage: (data) => {
         // Footer
