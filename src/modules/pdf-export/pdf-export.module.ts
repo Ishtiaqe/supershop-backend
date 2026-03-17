@@ -5,7 +5,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Module({
   controllers: [PdfExportController],
-  providers: [PdfExportService, PrismaService],
+  providers: [PdfExportService],
   exports: [PdfExportService],
 })
 export class PdfExportModule {}
