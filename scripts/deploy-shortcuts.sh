@@ -76,6 +76,11 @@ run_manual() {
     "--image=${IMAGE}"
     "--region=${REGION}"
     --platform=managed
+    --cpu=0.5
+    --memory=256Mi
+    --min-instances=0
+    --cpu-throttling
+    --cpu-boost
   )
 
   if [[ -n "$ENV_VARS_FILE" ]]; then

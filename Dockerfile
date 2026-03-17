@@ -4,8 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /usr/src/app
 
 # Install build dependencies (python, compiler, openssl) required for native modules and Prisma
-RUN apk add --no-cache python3 make g++ openssl && \
-    npm config set python /usr/bin/python3
+RUN apk add --no-cache python3 make g++ openssl
 
 # Copy dependency manifests first for better caching
 COPY package*.json ./
@@ -32,11 +31,16 @@ WORKDIR /usr/src/app
 ENV PORT=8080
 ENV NODE_ENV=production
 
-# Install runtime dependencies (OpenSSL is needed by Prisma Client)
-RUN apk add --no-cache openssl
+# Install runtime dependencies:
+# - OpenSSL is needed by Prisma Client
+# - postgresql-client is needed for database backups (pg_dump/psql)
+RUN apk add --no-cache openssl postgresql-client
+
+# Pre-create the backups directory and set ownership
+# We also ensure the app directory itself can be written to if needed
+RUN mkdir -p backups && chown -R node:node /usr/src/app
 
 # Copy runtime artifacts from the builder stage with correct ownership
-# The 'node' user (UID 1000) is pre-configured in the official alpine image
 COPY --from=builder --chown=node:node /usr/src/app/dist ./dist
 COPY --from=builder --chown=node:node /usr/src/app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /usr/src/app/package*.json ./
