@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import * as jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const PDF_FONT = {
   TITLE: 16,
@@ -34,7 +34,7 @@ export class PdfExportService {
       orderBy: { inventory: { quantity: 'asc' } },
     });
 
-    const doc = new jsPDF.jsPDF();
+    const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 10;
 
@@ -44,7 +44,11 @@ export class PdfExportService {
 
     // Date
     doc.setFontSize(PDF_FONT.BODY);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, margin + 12);
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    doc.text(`Generated on: ${day}/${month}/${year}`, margin, margin + 12);
 
     // Table data
     const tableData = items.map((item) => [
@@ -54,11 +58,17 @@ export class PdfExportService {
       item.inventory.lastRestockQty?.toString() || 'N/A',
       item.isSlowItem ? 'Yes' : 'No',
       item.reason,
-      new Date(item.addedAt).toLocaleDateString(),
+      (() => {
+        const d = new Date(item.addedAt);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+      })(),
     ]);
 
     // Generate table
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [
         [
           'Item Name',
@@ -85,7 +95,7 @@ export class PdfExportService {
       },
       didDrawPage: (data) => {
         // Footer
-        const pageCount = (doc as any).internal.getNumberOfPages();
+        const pageCount = doc.getNumberOfPages();
         const pageSize = doc.internal.pageSize;
         const pageHeight = pageSize.getHeight();
         const pageWidth = pageSize.getWidth();
@@ -130,7 +140,7 @@ export class PdfExportService {
       ).map((item) => item.inventoryId)
     );
 
-    const doc = new jsPDF.jsPDF();
+    const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 10;
 
@@ -140,7 +150,11 @@ export class PdfExportService {
 
     // Date
     doc.setFontSize(PDF_FONT.BODY);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, margin + 12);
+    const now2 = new Date();
+    const day2 = String(now2.getDate()).padStart(2, '0');
+    const month2 = String(now2.getMonth() + 1).padStart(2, '0');
+    const year2 = now2.getFullYear();
+    doc.text(`Generated on: ${day2}/${month2}/${year2}`, margin, margin + 12);
 
     // Summary stats
     const lowStockCount = inventoryItems.filter(
@@ -161,12 +175,18 @@ export class PdfExportService {
       item.retailPrice.toFixed(2),
       shortListIds.has(item.id) ? 'YES' : 'NO',
       item.lastMovedDate
-        ? new Date(item.lastMovedDate).toLocaleDateString()
+        ? (() => {
+            const d = new Date(item.lastMovedDate);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+          })()
         : 'Never',
     ]);
 
     // Generate table
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [
         [
           'Item Name',
@@ -192,7 +212,7 @@ export class PdfExportService {
         6: { cellWidth: 30 },
       },
       didDrawPage: (data) => {
-        const pageCount = (doc as any).internal.getNumberOfPages();
+        const pageCount = doc.getNumberOfPages();
         const pageSize = doc.internal.pageSize;
         const pageHeight = pageSize.getHeight();
 
@@ -223,7 +243,7 @@ export class PdfExportService {
       where: { tenantId, isSlowItem: true },
     });
 
-    const doc = new jsPDF.jsPDF();
+    const doc = new jsPDF();
     const margin = 10;
 
     // Title
@@ -232,7 +252,11 @@ export class PdfExportService {
 
     // Date
     doc.setFontSize(PDF_FONT.BODY);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, margin + 12);
+    const now3 = new Date();
+    const day3 = String(now3.getDate()).padStart(2, '0');
+    const month3 = String(now3.getMonth() + 1).padStart(2, '0');
+    const year3 = now3.getFullYear();
+    doc.text(`Generated on: ${day3}/${month3}/${year3}`, margin, margin + 12);
 
     // Statistics
     let yPos = margin + 25;

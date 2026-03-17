@@ -9,7 +9,7 @@ import { Response } from 'express';
 import { JwtAuthGuard } from '../../modules/auth/guards/jwt-auth.guard';
 import { PdfExportService } from './pdf-export.service';
 
-@Controller('api/v1/export')
+@Controller('export')
 @UseGuards(JwtAuthGuard)
 export class PdfExportController {
   constructor(private pdfExportService: PdfExportService) {}

@@ -5,7 +5,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Module({
   controllers: [ShortListController],
-  providers: [ShortListService, PrismaService],
+  providers: [ShortListService],
   exports: [ShortListService],
 })
 export class ShortListModule {}
