@@ -76,7 +76,7 @@ run_manual() {
     "--image=${IMAGE}"
     "--region=${REGION}"
     --platform=managed
-    --cpu=0.5
+    --cpu=1
     --memory=256Mi
     --min-instances=0
     --cpu-throttling
