@@ -3,8 +3,6 @@ import {ValidationPipe} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 import {SwaggerModule, DocumentBuilder} from '@nestjs/swagger';
 import {AppModule} from './app.module';
-import * as Sentry from '@sentry/node';
-import { SentryExceptionFilter } from './common/filters/sentry-exception.filter';
 import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
@@ -77,23 +75,6 @@ async function bootstrap() {
     ? Number(configService.get('PORT'))
     : undefined;
   const port = envPort || configPort || 8080;
-  // Init Sentry if configured
-  const sentryDsn = configService.get('SENTRY_DSN') || process.env.SENTRY_DSN;
-  if (sentryDsn) {
-    Sentry.init({
-      dsn: sentryDsn,
-      integrations: [new Sentry.Integrations.Http({ tracing: true }) as any],
-      tracesSampleRate: Number(configService.get('SENTRY_TRACES_SAMPLE_RATE') || 0.1),
-    });
-
-    // Register Sentry request handler middleware so Sentry captures incoming requests
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    app.use(Sentry.Handlers.requestHandler());
-
-    // Use the Sentry exception filter to capture any unhandled exceptions in Nest
-    app.useGlobalFilters(new SentryExceptionFilter());
-  }
   console.log(
     `📦 Bootstrapping: effective env PORT=${process.env.PORT ?? '<not set>'}`
   );

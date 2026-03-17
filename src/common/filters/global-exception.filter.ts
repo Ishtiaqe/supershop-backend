@@ -1,10 +1,3 @@
-/**
- * Global Exception Filter
- * Implements: Fail Fast principle, Consistency/POLA
- * Catches all exceptions and formats them consistently
- * Integrates with Sentry for error tracking
- */
-
 import {
   ArgumentsHost,
   Catch,
@@ -14,7 +7,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
-import * as Sentry from '@sentry/node';
 import { AppException, ErrorResponse } from '../exceptions/app.exception';
 
 @Catch()
@@ -88,14 +80,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
     }
 
-    // Capture to Sentry for non-4xx errors
     if (status >= 500) {
-      Sentry.captureException(exception, {
-        tags: {
-          path: request.url,
-          method: request.method,
-        },
-      });
+      this.logger.error(`Server error at ${request.url} ${request.method}`,
+        exception as Error);
     }
 
     response.status(status).json(errorResponse);
