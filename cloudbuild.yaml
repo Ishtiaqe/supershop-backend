@@ -19,6 +19,11 @@ steps:
       - --image=asia-southeast1-docker.pkg.dev/shomaj-817b0/cloud-run-source-deploy/supershop-backend/supershop-backend:$COMMIT_SHA
       - --region=asia-southeast1
       - --platform=managed
+      - --cpu=0.5
+      - --memory=256Mi
+      - --min-instances=0
+      - --cpu-throttling
+      - --cpu-boost
       - --quiet
 
 tags:
