@@ -11,8 +11,8 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../modules/auth/guards/jwt-auth.guard';
-import { ShortListService } from './shortlist.service';
+import {JwtAuthGuard} from '../../modules/auth/guards/jwt-auth.guard';
+import {ShortListService} from './shortlist.service';
 
 @Controller('shortlist')
 @UseGuards(JwtAuthGuard)

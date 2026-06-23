@@ -103,12 +103,7 @@ export class AppException extends Error {
  */
 export class NotFoundException extends AppException {
   constructor(resource: string, details?: Record<string, any>) {
-    super(
-      ErrorCode.RESOURCE_NOT_FOUND,
-      `${resource} not found`,
-      404,
-      details
-    );
+    super(ErrorCode.RESOURCE_NOT_FOUND, `${resource} not found`, 404, details);
     Object.setPrototypeOf(this, NotFoundException.prototype);
   }
 }

@@ -169,13 +169,15 @@ export class CatalogService {
       // If product exists but request contains additional fields, update product accordingly
       const updateData: Record<string, unknown> = {};
       if (description !== undefined) updateData.description = description;
-      if (productType !== undefined) updateData.productType = productType as any;
+      if (productType !== undefined)
+        updateData.productType = productType as any;
       if (genericName !== undefined) updateData.genericName = genericName;
-      if (manufacturerName !== undefined) updateData.manufacturerName = manufacturerName;
+      if (manufacturerName !== undefined)
+        updateData.manufacturerName = manufacturerName;
 
       if (Object.keys(updateData).length > 0) {
         product = await this.prisma.product.update({
-          where: { id: product.id },
+          where: {id: product.id},
           data: updateData,
         });
       }
@@ -295,8 +297,8 @@ export class CatalogService {
   ) {
     // Fetch variant to get productId and tenantId
     const existing = await this.prisma.productVariant.findUnique({
-      where: { id: variantId },
-      select: { id: true, productId: true },
+      where: {id: variantId},
+      select: {id: true, productId: true},
     });
 
     if (!existing) {
@@ -305,32 +307,41 @@ export class CatalogService {
 
     // Prepare variant update data (only allowed fields)
     const variantUpdate: Record<string, unknown> = {};
-    if (data.variantName !== undefined) variantUpdate.variantName = data.variantName;
+    if (data.variantName !== undefined)
+      variantUpdate.variantName = data.variantName;
     if (data.sku !== undefined) variantUpdate.sku = data.sku;
-    if (data.retailPrice !== undefined) variantUpdate.retailPrice = data.retailPrice;
+    if (data.retailPrice !== undefined)
+      variantUpdate.retailPrice = data.retailPrice;
 
     // Prepare product update data
     const productUpdate: Record<string, unknown> = {};
     if (data.productName !== undefined) productUpdate.name = data.productName;
-    if (data.description !== undefined) productUpdate.description = data.description;
-    if (data.productType !== undefined) productUpdate.productType = data.productType as any;
-    if (data.genericName !== undefined) productUpdate.genericName = data.genericName;
-    if (data.manufacturerName !== undefined) productUpdate.manufacturerName = data.manufacturerName;
+    if (data.description !== undefined)
+      productUpdate.description = data.description;
+    if (data.productType !== undefined)
+      productUpdate.productType = data.productType as any;
+    if (data.genericName !== undefined)
+      productUpdate.genericName = data.genericName;
+    if (data.manufacturerName !== undefined)
+      productUpdate.manufacturerName = data.manufacturerName;
 
     // Update product and variant in a single transaction to keep data consistent
     const transactionOps: any[] = [];
 
     if (Object.keys(productUpdate).length > 0) {
       transactionOps.push(
-        this.prisma.product.update({ where: { id: existing.productId }, data: productUpdate })
+        this.prisma.product.update({
+          where: {id: existing.productId},
+          data: productUpdate,
+        })
       );
     }
 
     transactionOps.push(
       this.prisma.productVariant.update({
-        where: { id: variantId },
+        where: {id: variantId},
         data: variantUpdate,
-        include: { product: true },
+        include: {product: true},
       })
     );
 

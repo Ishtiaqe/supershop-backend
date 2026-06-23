@@ -23,18 +23,27 @@ async function bootstrap() {
   ];
 
   // In development, ensure localhost origins are allowed (useful for local testing and Playwright)
-  if ((process.env.NODE_ENV || configService.get('NODE_ENV')) === 'development') {
-    const devOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost'];
+  if (
+    (process.env.NODE_ENV || configService.get('NODE_ENV')) === 'development'
+  ) {
+    const devOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost',
+    ];
     corsOrigins = Array.from(new Set([...corsOrigins, ...devOrigins]));
   }
   // For development, allow any localhost origin on any port for convenience (e.g. 3000/3001).
   // In production, only allow exact origins listed in CORS_ORIGIN.
-  if ((process.env.NODE_ENV || configService.get('NODE_ENV')) === 'development') {
+  if (
+    (process.env.NODE_ENV || configService.get('NODE_ENV')) === 'development'
+  ) {
     app.enableCors({
       origin: (origin, callback) => {
         if (!origin) return callback(null, true); // allow server-to-server requests or curl
         const localhostMatch = /^https?:\/\/localhost(:\d+)?$/i;
-        const allowed = localhostMatch.test(origin) || corsOrigins.includes(origin);
+        const allowed =
+          localhostMatch.test(origin) || corsOrigins.includes(origin);
         callback(null, allowed);
       },
       credentials: true,

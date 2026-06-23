@@ -1,7 +1,7 @@
-import { Module } from "@nestjs/common";
-import { BackupService } from "./backup.service";
-import { BackupController } from "./backup.controller";
-import { PrismaService } from "@/common/prisma/prisma.service";
+import {Module} from '@nestjs/common';
+import {BackupService} from './backup.service';
+import {BackupController} from './backup.controller';
+import {PrismaService} from '@/common/prisma/prisma.service';
 
 @Module({
   controllers: [BackupController],

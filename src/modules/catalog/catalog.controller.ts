@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import {ApiTags, ApiOperation, ApiBearerAuth} from '@nestjs/swagger';
 import {CatalogService} from './catalog.service';
-import { CreateCatalogDto, UpdateCatalogDto } from './dto/catalog.dto';
+import {CreateCatalogDto, UpdateCatalogDto} from './dto/catalog.dto';
 import {JwtAuthGuard} from '../auth/guards/jwt-auth.guard';
 import {RolesGuard} from '../auth/guards/roles.guard';
 import {Roles} from '../auth/decorators/roles.decorator';

@@ -47,7 +47,7 @@ export interface IPaginatedRepository<T, CreateDTO, UpdateDTO>
     skip: number,
     take: number,
     orderBy?: Record<string, any>
-  ): Promise<{ items: T[]; total: number }>;
+  ): Promise<{items: T[]; total: number}>;
 }
 
 /**
@@ -63,5 +63,5 @@ export interface ISearchableRepository<T, CreateDTO, UpdateDTO>
     query: string,
     skip?: number,
     take?: number
-  ): Promise<{ items: T[]; total: number }>;
+  ): Promise<{items: T[]; total: number}>;
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {Injectable, NotFoundException, ConflictException} from '@nestjs/common';
 import {
   CreateExpenseCategoryDto,
   UpdateExpenseCategoryDto,
@@ -6,14 +6,14 @@ import {
   UpdateExpenseDto,
   GetExpensesFilterDto,
 } from './dto/expenses.dto';
-import { CashBoxService } from '../cash-box/cash-box.service';
-import { PrismaService } from '../../common/prisma/prisma.service';
+import {CashBoxService} from '../cash-box/cash-box.service';
+import {PrismaService} from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class ExpensesService {
   constructor(
     private prisma: PrismaService,
-    private cashBoxService: CashBoxService,
+    private cashBoxService: CashBoxService
   ) {}
 
   // --- Expense Categories ---
@@ -29,7 +29,9 @@ export class ExpensesService {
     });
 
     if (existing) {
-      throw new ConflictException(`Category with name '${dto.name}' already exists.`);
+      throw new ConflictException(
+        `Category with name '${dto.name}' already exists.`
+      );
     }
 
     return this.prisma.expenseCategory.create({
@@ -42,14 +44,18 @@ export class ExpensesService {
 
   async getCategories(tenantId: string) {
     return this.prisma.expenseCategory.findMany({
-      where: { tenantId },
-      orderBy: { name: 'asc' },
+      where: {tenantId},
+      orderBy: {name: 'asc'},
     });
   }
 
-  async updateCategory(tenantId: string, id: string, dto: UpdateExpenseCategoryDto) {
+  async updateCategory(
+    tenantId: string,
+    id: string,
+    dto: UpdateExpenseCategoryDto
+  ) {
     const category = await this.prisma.expenseCategory.findFirst({
-      where: { id, tenantId },
+      where: {id, tenantId},
     });
 
     if (!category) {
@@ -67,22 +73,24 @@ export class ExpensesService {
       });
 
       if (existing) {
-        throw new ConflictException(`Category with name '${dto.name}' already exists.`);
+        throw new ConflictException(
+          `Category with name '${dto.name}' already exists.`
+        );
       }
     }
 
     return this.prisma.expenseCategory.update({
-      where: { id },
+      where: {id},
       data: dto,
     });
   }
 
   async deleteCategory(tenantId: string, id: string) {
     const category = await this.prisma.expenseCategory.findFirst({
-      where: { id, tenantId },
+      where: {id, tenantId},
       include: {
         _count: {
-          select: { expenses: true },
+          select: {expenses: true},
         },
       },
     });
@@ -92,26 +100,34 @@ export class ExpensesService {
     }
 
     if (category._count.expenses > 0) {
-      throw new ConflictException('Cannot delete category because it has associated expenses.');
+      throw new ConflictException(
+        'Cannot delete category because it has associated expenses.'
+      );
     }
 
     await this.prisma.expenseCategory.delete({
-      where: { id },
+      where: {id},
     });
 
-    return { success: true };
+    return {success: true};
   }
 
   // --- Expenses ---
 
-  async createExpense(tenantId: string, employeeId: string, dto: CreateExpenseDto) {
+  async createExpense(
+    tenantId: string,
+    employeeId: string,
+    dto: CreateExpenseDto
+  ) {
     // Verify category exists and belongs to tenant
     const category = await this.prisma.expenseCategory.findFirst({
-      where: { id: dto.categoryId, tenantId },
+      where: {id: dto.categoryId, tenantId},
     });
 
     if (!category) {
-      throw new NotFoundException('Expense category not found or does not belong to this tenant');
+      throw new NotFoundException(
+        'Expense category not found or does not belong to this tenant'
+      );
     }
 
     const expense = await this.prisma.expense.create({
@@ -138,22 +154,33 @@ export class ExpensesService {
       await this.cashBoxService.createEntry(tenantId, employeeId, {
         entryType: 'EXPENSE_OUT' as any,
         amount: expense.amount,
-        note: `Expense: ${category.name}${expense.description ? ` — ${expense.description}` : ''}`,
+        note: `Expense: ${category.name}${
+          expense.description ? ` — ${expense.description}` : ''
+        }`,
         referenceId: expense.id,
         entryDate: expense.expenseDate,
       });
     } catch (err) {
-      console.error('[CashBox] Failed to create EXPENSE_OUT entry:', err?.message);
+      console.error(
+        '[CashBox] Failed to create EXPENSE_OUT entry:',
+        err?.message
+      );
     }
 
     return expense;
   }
 
   async getExpenses(tenantId: string, filterDto: GetExpensesFilterDto) {
-    const { startDate, endDate, categoryId, page = '1', limit = '10' } = filterDto;
+    const {
+      startDate,
+      endDate,
+      categoryId,
+      page = '1',
+      limit = '10',
+    } = filterDto;
     const skip = (Number(page) - 1) * Number(limit);
 
-    const where: any = { tenantId };
+    const where: any = {tenantId};
 
     if (categoryId) {
       where.categoryId = categoryId;
@@ -170,7 +197,7 @@ export class ExpensesService {
         where,
         skip,
         take: Number(limit),
-        orderBy: { expenseDate: 'desc' },
+        orderBy: {expenseDate: 'desc'},
         include: {
           category: true,
           employee: {
@@ -182,7 +209,7 @@ export class ExpensesService {
           },
         },
       }),
-      this.prisma.expense.count({ where }),
+      this.prisma.expense.count({where}),
     ]);
 
     return {
@@ -197,10 +224,10 @@ export class ExpensesService {
   }
 
   async getExpenseSummary(tenantId: string, filterDto: GetExpensesFilterDto) {
-    const { startDate, endDate } = filterDto;
-    
-    const where: any = { tenantId };
-    
+    const {startDate, endDate} = filterDto;
+
+    const where: any = {tenantId};
+
     if (startDate || endDate) {
       where.expenseDate = {};
       if (startDate) where.expenseDate.gte = new Date(startDate);
@@ -215,11 +242,14 @@ export class ExpensesService {
     });
 
     let totalAmount = 0;
-    const categorySummary: Record<string, { name: string; amount: number; count: number }> = {};
+    const categorySummary: Record<
+      string,
+      {name: string; amount: number; count: number}
+    > = {};
 
     expenses.forEach((expense) => {
       totalAmount += expense.amount;
-      
+
       const catId = expense.categoryId;
       if (!categorySummary[catId]) {
         categorySummary[catId] = {
@@ -228,7 +258,7 @@ export class ExpensesService {
           count: 0,
         };
       }
-      
+
       categorySummary[catId].amount += expense.amount;
       categorySummary[catId].count += 1;
     });
@@ -236,13 +266,15 @@ export class ExpensesService {
     return {
       totalAmount,
       totalCount: expenses.length,
-      categorySummary: Object.values(categorySummary).sort((a, b) => b.amount - a.amount),
+      categorySummary: Object.values(categorySummary).sort(
+        (a, b) => b.amount - a.amount
+      ),
     };
   }
 
   async getExpenseById(tenantId: string, id: string) {
     const expense = await this.prisma.expense.findFirst({
-      where: { id, tenantId },
+      where: {id, tenantId},
       include: {
         category: true,
         employee: {
@@ -264,7 +296,7 @@ export class ExpensesService {
 
   async updateExpense(tenantId: string, id: string, dto: UpdateExpenseDto) {
     const expense = await this.prisma.expense.findFirst({
-      where: { id, tenantId },
+      where: {id, tenantId},
     });
 
     if (!expense) {
@@ -273,16 +305,18 @@ export class ExpensesService {
 
     if (dto.categoryId && dto.categoryId !== expense.categoryId) {
       const category = await this.prisma.expenseCategory.findFirst({
-        where: { id: dto.categoryId, tenantId },
+        where: {id: dto.categoryId, tenantId},
       });
 
       if (!category) {
-        throw new NotFoundException('Expense category not found or does not belong to this tenant');
+        throw new NotFoundException(
+          'Expense category not found or does not belong to this tenant'
+        );
       }
     }
 
     return this.prisma.expense.update({
-      where: { id },
+      where: {id},
       data: {
         ...dto,
         expenseDate: dto.expenseDate ? new Date(dto.expenseDate) : undefined,
@@ -295,7 +329,7 @@ export class ExpensesService {
 
   async deleteExpense(tenantId: string, id: string) {
     const expense = await this.prisma.expense.findFirst({
-      where: { id, tenantId },
+      where: {id, tenantId},
     });
 
     if (!expense) {
@@ -303,9 +337,9 @@ export class ExpensesService {
     }
 
     await this.prisma.expense.delete({
-      where: { id },
+      where: {id},
     });
 
-    return { success: true };
+    return {success: true};
   }
 }

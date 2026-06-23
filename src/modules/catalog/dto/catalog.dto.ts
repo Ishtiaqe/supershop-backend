@@ -1,6 +1,14 @@
-import { IsString, IsNumber, IsOptional, IsEnum, IsNotEmpty, IsPositive, IsIn } from 'class-validator';
-import { Type } from 'class-transformer';
-import { ValidateIf } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsEnum,
+  IsNotEmpty,
+  IsPositive,
+  IsIn,
+} from 'class-validator';
+import {Type} from 'class-transformer';
+import {ValidateIf} from 'class-validator';
 
 export enum ProductTypeEnum {
   GENERAL = 'GENERAL',

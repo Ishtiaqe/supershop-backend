@@ -4,12 +4,12 @@ import {
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
+import {JwtService} from '@nestjs/jwt';
+import {ConfigService} from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as admin from 'firebase-admin';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { RegisterDto, LoginDto } from './dto/auth.dto';
+import {PrismaService} from '../../common/prisma/prisma.service';
+import {RegisterDto, LoginDto} from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -35,7 +35,9 @@ export class AuthService {
         'shomaj-817b0';
 
       const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
-      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+      const clientEmail = this.configService.get<string>(
+        'FIREBASE_CLIENT_EMAIL'
+      );
 
       if (!privateKey || !clientEmail) {
         throw new Error(
@@ -60,11 +62,11 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const { email, password, fullName, phone, role, tenantId } = registerDto;
+    const {email, password, fullName, phone, role, tenantId} = registerDto;
 
     // Check if user exists
     const existingUser = await this.prisma.user.findUnique({
-      where: { email },
+      where: {email},
     });
 
     if (existingUser) {
@@ -74,7 +76,7 @@ export class AuthService {
     // Validate tenant if provided
     if (tenantId) {
       const tenant = await this.prisma.tenant.findUnique({
-        where: { id: tenantId },
+        where: {id: tenantId},
       });
       if (!tenant) {
         throw new BadRequestException('Invalid tenant ID');
@@ -107,10 +109,10 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const {email, password} = loginDto;
 
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: {email},
     });
 
     if (!user) {
@@ -143,7 +145,7 @@ export class AuthService {
       });
 
       const storedToken = await this.prisma.refreshToken.findUnique({
-        where: { token: refreshToken },
+        where: {token: refreshToken},
       });
 
       if (!storedToken || storedToken.userId !== payload.sub) {
@@ -152,7 +154,7 @@ export class AuthService {
 
       // Delete old refresh token
       await this.prisma.refreshToken.delete({
-        where: { token: refreshToken },
+        where: {token: refreshToken},
       });
 
       // Generate new tokens
@@ -166,14 +168,18 @@ export class AuthService {
 
   private getJWTSecret(): string {
     if (!this.jwtSecret || this.jwtSecret.length === 0) {
-      console.error('[Backend] JWT_SECRET not configured in environment variables either!');
+      console.error(
+        '[Backend] JWT_SECRET not configured in environment variables either!'
+      );
     }
     return this.jwtSecret;
   }
 
   private getJWTRefreshSecret(): string {
     if (!this.jwtRefreshSecret || this.jwtRefreshSecret.length === 0) {
-      console.error('[Backend] JWT_REFRESH_SECRET not configured in environment variables either!');
+      console.error(
+        '[Backend] JWT_REFRESH_SECRET not configured in environment variables either!'
+      );
     }
     return this.jwtRefreshSecret;
   }
@@ -181,7 +187,7 @@ export class AuthService {
   private async generateTokens(userId: string) {
     console.log('[Backend] generateTokens called for userId:', userId);
 
-    const payload = { sub: userId };
+    const payload = {sub: userId};
 
     const accessSecret = this.getJWTSecret();
     const accessExpires =
@@ -190,7 +196,12 @@ export class AuthService {
     const refreshExpires =
       this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
 
-    console.log('[Backend] JWT secrets retrieved, accessSecret length:', accessSecret?.length, 'refreshSecret length:', refreshSecret?.length);
+    console.log(
+      '[Backend] JWT secrets retrieved, accessSecret length:',
+      accessSecret?.length,
+      'refreshSecret length:',
+      refreshSecret?.length
+    );
 
     // Check if secrets are available
     if (!accessSecret || accessSecret.length === 0) {
@@ -213,7 +224,12 @@ export class AuthService {
       }),
     ]);
 
-    console.log('[Backend] JWT tokens signed, accessToken exists:', !!accessToken, 'refreshToken exists:', !!refreshToken);
+    console.log(
+      '[Backend] JWT tokens signed, accessToken exists:',
+      !!accessToken,
+      'refreshToken exists:',
+      !!refreshToken
+    );
 
     // Store refresh token
     const expiresAt = new Date();
@@ -234,7 +250,10 @@ export class AuthService {
       refreshToken,
     };
 
-    console.log('[Backend] generateTokens returning:', { hasAccess: !!result.accessToken, hasRefresh: !!result.refreshToken });
+    console.log('[Backend] generateTokens returning:', {
+      hasAccess: !!result.accessToken,
+      hasRefresh: !!result.refreshToken,
+    });
 
     return result;
   }
@@ -242,9 +261,9 @@ export class AuthService {
   async logout(refreshToken: string) {
     try {
       await this.prisma.refreshToken.delete({
-        where: { token: refreshToken },
+        where: {token: refreshToken},
       });
-      return { message: 'Logged out successfully' };
+      return {message: 'Logged out successfully'};
     } catch (error) {
       throw new BadRequestException('Invalid refresh token');
     }
@@ -255,14 +274,17 @@ export class AuthService {
       if (!idToken) {
         throw new BadRequestException('ID token is required');
       }
-      console.log('[Backend] Starting Firebase auth for token:', idToken.length > 20 ? idToken.substring(0, 20) + '...' : idToken);
+      console.log(
+        '[Backend] Starting Firebase auth for token:',
+        idToken.length > 20 ? idToken.substring(0, 20) + '...' : idToken
+      );
       const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const { uid, email, name, picture } = decodedToken;
+      const {uid, email, name, picture} = decodedToken;
       console.log('[Backend] Firebase token verified for user:', email);
 
       // Check if user exists
       let user = await this.prisma.user.findUnique({
-        where: { email },
+        where: {email},
       });
       console.log('[Backend] User lookup result:', user ? 'existing' : 'new');
 
@@ -299,7 +321,7 @@ export class AuthService {
         hasAccessToken: !!response.accessToken,
         hasRefreshToken: !!response.refreshToken,
         hasUser: !!response.user,
-        userId: response.user?.id
+        userId: response.user?.id,
       });
 
       return response;
@@ -316,7 +338,7 @@ export class AuthService {
   ) {
     // Check if current user is SUPER_ADMIN
     const currentUser = await this.prisma.user.findUnique({
-      where: { id: currentUserId },
+      where: {id: currentUserId},
     });
 
     if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
@@ -327,7 +349,7 @@ export class AuthService {
 
     // Check if target user exists
     const targetUser = await this.prisma.user.findUnique({
-      where: { id: userId },
+      where: {id: userId},
     });
 
     if (!targetUser) {
@@ -339,10 +361,10 @@ export class AuthService {
 
     // Update password
     await this.prisma.user.update({
-      where: { id: userId },
-      data: { password: hashedPassword },
+      where: {id: userId},
+      data: {password: hashedPassword},
     });
 
-    return { message: 'Password changed successfully' };
+    return {message: 'Password changed successfully'};
   }
 }

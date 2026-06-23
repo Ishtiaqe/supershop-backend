@@ -74,10 +74,7 @@ export interface IInventoryService {
   /**
    * Update inventory quantity
    */
-  updateQuantity(
-    inventoryId: string,
-    quantityChange: number
-  ): Promise<void>;
+  updateQuantity(inventoryId: string, quantityChange: number): Promise<void>;
 
   /**
    * Get inventory by ID

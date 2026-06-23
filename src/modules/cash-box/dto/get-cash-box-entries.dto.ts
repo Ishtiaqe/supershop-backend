@@ -1,6 +1,6 @@
-import { IsDateString, IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
-import { Type } from 'class-transformer';
-import { CashBoxEntryType } from '@prisma/client';
+import {IsDateString, IsEnum, IsNumber, IsOptional, Min} from 'class-validator';
+import {Type} from 'class-transformer';
+import {CashBoxEntryType} from '@prisma/client';
 
 export class GetCashBoxEntriesDto {
   @IsDateString()

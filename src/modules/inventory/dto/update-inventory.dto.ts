@@ -9,7 +9,7 @@ import {
   ValidationOptions,
   ValidationArguments,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import {Type} from 'class-transformer';
 
 // Custom validator to ensure retailPrice >= purchasePrice when both are provided
 function IsRetailPriceValid(validationOptions?: ValidationOptions) {
@@ -55,19 +55,19 @@ export class UpdateInventoryDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @IsPositive({ message: 'Quantity must be a positive number' })
+  @IsPositive({message: 'Quantity must be a positive number'})
   quantity?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @Min(0, { message: 'Purchase price must be non-negative' })
+  @Min(0, {message: 'Purchase price must be non-negative'})
   purchasePrice?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @Min(0, { message: 'Retail price must be non-negative' })
+  @Min(0, {message: 'Retail price must be non-negative'})
   @IsRetailPriceValid({
     message: 'Retail price cannot be lower than purchase price',
   })
@@ -76,7 +76,7 @@ export class UpdateInventoryDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @Min(0, { message: 'Max discount must be non-negative' })
+  @Min(0, {message: 'Max discount must be non-negative'})
   maxDiscount?: number;
 
   @IsOptional()

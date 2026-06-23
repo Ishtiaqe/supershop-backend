@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   UseGuards,
   UseInterceptors,
   UploadedFile,
@@ -9,38 +10,49 @@ import {
   Response,
   Logger,
   Param,
-} from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
-import { Response as ExpressResponse } from "express";
-import { BackupService } from "./backup.service";
-import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
-import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
+} from '@nestjs/common';
+import {FileInterceptor} from '@nestjs/platform-express';
+import {Response as ExpressResponse} from 'express';
+import {BackupService} from './backup.service';
+import {JwtAuthGuard} from '@/modules/auth/guards/jwt-auth.guard';
+import {RolesGuard} from '@/modules/auth/guards/roles.guard';
+import {Roles} from '@/modules/auth/decorators/roles.decorator';
+import {UserRole} from '@/modules/auth/dto/auth.dto';
+import {CurrentUser} from '@/modules/auth/decorators/current-user.decorator';
 
-@Controller("backup")
-@UseGuards(JwtAuthGuard)
+@Controller('backup')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class BackupController {
   private readonly logger = new Logger(BackupController.name);
 
-  constructor(private readonly backupService: BackupService) { }
+  constructor(private readonly backupService: BackupService) {}
 
-  @Get("export")
+  @Get('export')
+  @Roles(UserRole.OWNER)
   async exportBackup(
     @CurrentUser() user: any,
     @Response() res: ExpressResponse
   ) {
     try {
-      this.logger.log(`User ${user.id} (tenantId: ${user.tenantId}) requesting backup export`);
+      this.logger.log(
+        `User ${user.id} (tenantId: ${user.tenantId}) requesting backup export`
+      );
 
       const buffer = await this.backupService.exportTenantBackup(user.tenantId);
 
-      const timestamp = new Date().toISOString().split("T")[0];
+      const timestamp = new Date().toISOString().split('T')[0];
       const filename = `supershop-backup-${timestamp}.json`;
 
-      res.setHeader("Content-Type", "application/json");
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      res.setHeader("Content-Length", buffer.length);
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${filename}"`
+      );
+      res.setHeader('Content-Length', buffer.length);
 
-      this.logger.log(`Backup exported successfully for tenantId: ${user.tenantId}`);
+      this.logger.log(
+        `Backup exported successfully for tenantId: ${user.tenantId}`
+      );
       res.send(buffer);
     } catch (error) {
       this.logger.error(
@@ -48,14 +60,15 @@ export class BackupController {
         error.message
       );
       res.status(400).json({
-        message: "Failed to export backup",
+        message: 'Failed to export backup',
         error: error.message,
       });
     }
   }
 
-  @Post("import")
-  @UseInterceptors(FileInterceptor("file"))
+  @Post('import')
+  @Roles(UserRole.OWNER)
+  @UseInterceptors(FileInterceptor('file'))
   async importBackup(
     @UploadedFile() file: any,
     @CurrentUser() user: any,
@@ -63,7 +76,7 @@ export class BackupController {
   ) {
     try {
       if (!file) {
-        throw new BadRequestException("No file uploaded");
+        throw new BadRequestException('No file uploaded');
       }
 
       this.logger.log(
@@ -78,18 +91,22 @@ export class BackupController {
         );
       }
 
-      // Validate file extension
-      const validExtensions = [".sql", ".gz"];
+      // Validate file extension - backups are exported as JSON
+      const validExtensions = ['.json'];
       const fileExtension = file.originalname.substring(
-        file.originalname.lastIndexOf(".")
+        file.originalname.lastIndexOf('.')
       );
       if (!validExtensions.includes(fileExtension)) {
         throw new BadRequestException(
-          "Invalid file type. Only .sql and .gz files are allowed"
+          'Invalid file type. Only .json backup files are allowed'
         );
       }
 
-      const result = await this.backupService.importBackup(file.buffer);
+      const result = await this.backupService.importTenantBackup(
+        user.tenantId,
+        user.id,
+        file.buffer
+      );
 
       this.logger.log(`Backup imported successfully for user ${user.id}`);
       res.status(200).json(result);
@@ -99,37 +116,52 @@ export class BackupController {
         error.message
       );
       res.status(400).json({
-        message: "Failed to import backup",
+        message: 'Failed to import backup',
         error: error.message,
       });
     }
   }
 
-  @Get("status")
+  @Delete('data')
+  @Roles(UserRole.OWNER)
+  async deleteTenantData(@CurrentUser() user: any) {
+    this.logger.warn(
+      `User ${user.id} (tenantId: ${user.tenantId}) requesting deletion of all shop data`
+    );
+    return await this.backupService.deleteTenantData(user.tenantId);
+  }
+
+  @Get('status')
+  @Roles(UserRole.OWNER)
   async getBackupStatus(@CurrentUser() user: any) {
     try {
-      const status = await this.backupService.getBackupStatus();
+      const status = await this.backupService.getBackupStatus(user.tenantId);
       return status;
     } catch (error) {
       this.logger.error(
         `Failed to get backup status for user ${user.id}:`,
         error.message
       );
-      return { lastBackup: null, backupSize: null };
+      return {
+        productCount: 0,
+        variantCount: 0,
+        inventoryCount: 0,
+        saleCount: 0,
+      };
     }
   }
 
-  @Get("export-user/:userId")
+  @Get('export-user/:userId')
   async exportUserData(
     @CurrentUser() user: any,
-    @Param("userId") userId: string,
+    @Param('userId') userId: string,
     @Response() res: ExpressResponse
   ) {
     try {
       // Only tenant owners (SUPER_ADMIN role) can export user data
-      if (user.role !== "SUPER_ADMIN") {
+      if (user.role !== 'SUPER_ADMIN') {
         throw new BadRequestException(
-          "Only tenant owners can export user data"
+          'Only tenant owners can export user data'
         );
       }
 
@@ -139,12 +171,15 @@ export class BackupController {
 
       const buffer = await this.backupService.exportUserData(userId);
 
-      const timestamp = new Date().toISOString().split("T")[0];
+      const timestamp = new Date().toISOString().split('T')[0];
       const filename = `user-data-${userId}-${timestamp}.json`;
 
-      res.setHeader("Content-Type", "application/json");
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      res.setHeader("Content-Length", buffer.length);
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${filename}"`
+      );
+      res.setHeader('Content-Length', buffer.length);
 
       this.logger.log(`User data exported successfully for userId: ${userId}`);
       res.send(buffer);
@@ -154,7 +189,7 @@ export class BackupController {
         error.message
       );
       res.status(400).json({
-        message: "Failed to export user data",
+        message: 'Failed to export user data',
         error: error.message,
       });
     }

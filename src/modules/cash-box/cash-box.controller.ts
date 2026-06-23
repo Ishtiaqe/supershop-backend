@@ -9,10 +9,10 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CashBoxService } from './cash-box.service';
-import { CreateCashBoxEntryDto } from './dto/create-cash-box-entry.dto';
-import { GetCashBoxEntriesDto } from './dto/get-cash-box-entries.dto';
+import {JwtAuthGuard} from '../auth/guards/jwt-auth.guard';
+import {CashBoxService} from './cash-box.service';
+import {CreateCashBoxEntryDto} from './dto/create-cash-box-entry.dto';
+import {GetCashBoxEntriesDto} from './dto/get-cash-box-entries.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('cash-box')
@@ -23,9 +23,13 @@ export class CashBoxController {
   getSummary(
     @Request() req,
     @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+    @Query('endDate') endDate?: string
   ) {
-    return this.cashBoxService.getSummary(req.user.tenantId, startDate, endDate);
+    return this.cashBoxService.getSummary(
+      req.user.tenantId,
+      startDate,
+      endDate
+    );
   }
 
   @Get('entries')
@@ -38,7 +42,7 @@ export class CashBoxController {
     return this.cashBoxService.createManualEntry(
       req.user.tenantId,
       req.user.id,
-      dto,
+      dto
     );
   }
 

@@ -38,11 +38,7 @@ export class ApiResponse<T> {
  * Pagination metadata
  */
 export class PaginationMeta {
-  constructor(
-    public skip: number,
-    public take: number,
-    public total: number
-  ) {}
+  constructor(public skip: number, public take: number, public total: number) {}
 
   get page(): number {
     return Math.floor(this.skip / this.take) + 1;

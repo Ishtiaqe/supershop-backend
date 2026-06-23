@@ -6,8 +6,8 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
-import { AppException, ErrorResponse } from '../exceptions/app.exception';
+import {Response} from 'express';
+import {AppException, ErrorResponse} from '../exceptions/app.exception';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -81,8 +81,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (status >= 500) {
-      this.logger.error(`Server error at ${request.url} ${request.method}`,
-        exception as Error);
+      this.logger.error(
+        `Server error at ${request.url} ${request.method}`,
+        exception as Error
+      );
     }
 
     response.status(status).json(errorResponse);

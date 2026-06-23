@@ -1,20 +1,24 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { CashBoxService } from '../cash-box/cash-box.service';
-import { CreateCreditPaymentDto } from './dto/credits.dto';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import {PrismaService} from '../../common/prisma/prisma.service';
+import {CashBoxService} from '../cash-box/cash-box.service';
+import {CreateCreditPaymentDto} from './dto/credits.dto';
 
 @Injectable()
 export class CreditsService {
   constructor(
     private prisma: PrismaService,
-    private cashBoxService: CashBoxService,
+    private cashBoxService: CashBoxService
   ) {}
 
   async getCreditCustomers(tenantId: string) {
     const creditSales = await this.prisma.sale.findMany({
-      where: { tenantId, paymentMethod: 'CREDIT' as any, dueAmount: { gt: 0 } },
-      include: { creditPayments: true },
-      orderBy: { saleTime: 'asc' },
+      where: {tenantId, paymentMethod: 'CREDIT' as any, dueAmount: {gt: 0}},
+      include: {creditPayments: true},
+      orderBy: {saleTime: 'asc'},
     });
 
     const customerMap = new Map<string, any>();
@@ -38,25 +42,31 @@ export class CreditsService {
       }
       const sorted = (sale.creditPayments ?? []).sort(
         (a: any, b: any) =>
-          new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime(),
+          new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
       );
       const last = sorted[0];
-      if (last && (!customer.lastPaymentDate || last.paymentDate > customer.lastPaymentDate)) {
+      if (
+        last &&
+        (!customer.lastPaymentDate ||
+          last.paymentDate > customer.lastPaymentDate)
+      ) {
         customer.lastPaymentDate = last.paymentDate;
       }
     }
 
-    return Array.from(customerMap.values()).sort((a, b) => b.totalDue - a.totalDue);
+    return Array.from(customerMap.values()).sort(
+      (a, b) => b.totalDue - a.totalDue
+    );
   }
 
   async getCreditsByPhone(tenantId: string, phone: string) {
     return this.prisma.sale.findMany({
-      where: { tenantId, customerPhone: phone, paymentMethod: 'CREDIT' as any },
+      where: {tenantId, customerPhone: phone, paymentMethod: 'CREDIT' as any},
       include: {
-        creditPayments: { orderBy: { paymentDate: 'desc' } },
-        items: { include: { inventory: true } },
+        creditPayments: {orderBy: {paymentDate: 'desc'}},
+        items: {include: {inventory: true}},
       },
-      orderBy: { saleTime: 'desc' },
+      orderBy: {saleTime: 'desc'},
     });
   }
 
@@ -64,10 +74,10 @@ export class CreditsService {
     tenantId: string,
     userId: string,
     saleId: string,
-    dto: CreateCreditPaymentDto,
+    dto: CreateCreditPaymentDto
   ) {
     const sale = await this.prisma.sale.findFirst({
-      where: { id: saleId, tenantId, paymentMethod: 'CREDIT' as any },
+      where: {id: saleId, tenantId, paymentMethod: 'CREDIT' as any},
     });
 
     if (!sale) throw new NotFoundException('Credit sale not found');
@@ -87,7 +97,7 @@ export class CreditsService {
     });
 
     await this.prisma.sale.update({
-      where: { id: saleId },
+      where: {id: saleId},
       data: {
         dueAmount: Math.max(0, (sale.dueAmount ?? 0) - dto.amount),
         amountPaid: (sale.amountPaid ?? 0) + dto.amount,
@@ -102,7 +112,10 @@ export class CreditsService {
         referenceId: payment.id,
       });
     } catch (err: any) {
-      console.error('[CashBox] Failed to create credit payment SALE_IN:', err?.message);
+      console.error(
+        '[CashBox] Failed to create credit payment SALE_IN:',
+        err?.message
+      );
     }
 
     return payment;
@@ -110,8 +123,8 @@ export class CreditsService {
 
   async getCreditSummary(tenantId: string) {
     const result = await this.prisma.sale.aggregate({
-      where: { tenantId, paymentMethod: 'CREDIT' as any, dueAmount: { gt: 0 } },
-      _sum: { dueAmount: true },
+      where: {tenantId, paymentMethod: 'CREDIT' as any, dueAmount: {gt: 0}},
+      _sum: {dueAmount: true},
       _count: true,
     });
     return {
