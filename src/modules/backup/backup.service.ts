@@ -36,6 +36,10 @@ export class BackupService {
         sales,
         saleItems,
         shortList,
+        expenseCategories,
+        expenses,
+        cashBoxEntries,
+        creditPayments,
       ] = await Promise.all([
         this.prisma.tenant.findUnique({where: {id: tenantId}}),
         this.prisma.user.findMany({where: {tenantId}}),
@@ -60,6 +64,10 @@ export class BackupService {
           where: {tenantId},
           include: {inventory: {include: {variant: true}}},
         }),
+        this.prisma.expenseCategory.findMany({where: {tenantId}}),
+        this.prisma.expense.findMany({where: {tenantId}}),
+        this.prisma.cashBoxEntry.findMany({where: {tenantId}}),
+        this.prisma.creditPayment.findMany({where: {tenantId}}),
       ]);
 
       backupData.data = {
@@ -71,6 +79,10 @@ export class BackupService {
         sales,
         saleItems,
         shortList,
+        expenseCategories,
+        expenses,
+        cashBoxEntries,
+        creditPayments,
       };
 
       const jsonString = JSON.stringify(backupData, null, 2);
@@ -137,6 +149,16 @@ export class BackupService {
       : [];
     const shortList: any[] = Array.isArray(data.shortList)
       ? data.shortList
+      : [];
+    const expenseCategories: any[] = Array.isArray(data.expenseCategories)
+      ? data.expenseCategories
+      : [];
+    const expenses: any[] = Array.isArray(data.expenses) ? data.expenses : [];
+    const cashBoxEntries: any[] = Array.isArray(data.cashBoxEntries)
+      ? data.cashBoxEntries
+      : [];
+    const creditPayments: any[] = Array.isArray(data.creditPayments)
+      ? data.creditPayments
       : [];
 
     const tenantUsers = await this.prisma.user.findMany({
@@ -210,10 +232,57 @@ export class BackupService {
         return {...rest, tenantId};
       });
 
+    const cleanExpenseCategories = expenseCategories.map((ec) => {
+      const {tenant, expenses: _expenses, ...rest} = ec;
+      return {...rest, tenantId};
+    });
+
+    const expenseCategoryIds = new Set(
+      cleanExpenseCategories.map((ec) => ec.id)
+    );
+    const cleanExpenses = expenses
+      .filter((e) => expenseCategoryIds.has(e.categoryId))
+      .map((e) => {
+        const {tenant, employee, category, ...rest} = e;
+        return {
+          ...rest,
+          tenantId,
+          employeeId: tenantUserIds.has(rest.employeeId)
+            ? rest.employeeId
+            : requestingUserId,
+        };
+      });
+
+    const cleanCashBoxEntries = cashBoxEntries.map((cb) => {
+      const {tenant, createdBy, ...rest} = cb;
+      return {
+        ...rest,
+        tenantId,
+        createdById: tenantUserIds.has(rest.createdById)
+          ? rest.createdById
+          : requestingUserId,
+      };
+    });
+
+    const cleanCreditPayments = creditPayments
+      .filter((cp) => saleIds.has(cp.saleId))
+      .map((cp) => {
+        const {tenant, sale, createdBy, ...rest} = cp;
+        return {
+          ...rest,
+          tenantId,
+          createdById: tenantUserIds.has(rest.createdById)
+            ? rest.createdById
+            : requestingUserId,
+        };
+      });
+
     this.logger.log(
       `Restoring tenant ${tenantId}: ${cleanProducts.length} products, ${cleanVariants.length} variants, ` +
         `${cleanInventory.length} inventory items, ${cleanSales.length} sales, ${cleanSaleItems.length} sale items, ` +
-        `${cleanShortList.length} short-list entries`
+        `${cleanShortList.length} short-list entries, ${cleanExpenseCategories.length} expense categories, ` +
+        `${cleanExpenses.length} expenses, ${cleanCashBoxEntries.length} cash box entries, ` +
+        `${cleanCreditPayments.length} credit payments`
     );
 
     try {
@@ -241,6 +310,21 @@ export class BackupService {
           if (cleanShortList.length) {
             await tx.shortList.createMany({data: cleanShortList});
           }
+          if (cleanExpenseCategories.length) {
+            await tx.expenseCategory.createMany({
+              data: cleanExpenseCategories,
+              skipDuplicates: true,
+            });
+          }
+          if (cleanExpenses.length) {
+            await tx.expense.createMany({data: cleanExpenses});
+          }
+          if (cleanCashBoxEntries.length) {
+            await tx.cashBoxEntry.createMany({data: cleanCashBoxEntries});
+          }
+          if (cleanCreditPayments.length) {
+            await tx.creditPayment.createMany({data: cleanCreditPayments});
+          }
 
           return {
             products: cleanProducts.length,
@@ -249,6 +333,10 @@ export class BackupService {
             sales: cleanSales.length,
             saleItems: cleanSaleItems.length,
             shortList: cleanShortList.length,
+            expenseCategories: cleanExpenseCategories.length,
+            expenses: cleanExpenses.length,
+            cashBoxEntries: cleanCashBoxEntries.length,
+            creditPayments: cleanCreditPayments.length,
           };
         },
         {timeout: 60000, maxWait: 10000}
@@ -273,12 +361,17 @@ export class BackupService {
     tx: Prisma.TransactionClient,
     tenantId: string
   ): Promise<void> {
+    // Delete most-dependent children first
+    await tx.creditPayment.deleteMany({where: {tenantId}});
     await tx.shortList.deleteMany({where: {tenantId}});
     await tx.saleItem.deleteMany({where: {sale: {tenantId}}});
     await tx.sale.deleteMany({where: {tenantId}});
+    await tx.cashBoxEntry.deleteMany({where: {tenantId}});
+    await tx.expense.deleteMany({where: {tenantId}});
     await tx.inventoryItem.deleteMany({where: {tenantId}});
     await tx.productVariant.deleteMany({where: {tenantId}});
     await tx.product.deleteMany({where: {tenantId}});
+    await tx.expenseCategory.deleteMany({where: {tenantId}});
   }
 
   /**
