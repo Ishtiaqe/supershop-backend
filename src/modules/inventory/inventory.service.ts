@@ -4,10 +4,16 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import {PrismaService} from '../../common/prisma/prisma.service';
+import {CashBoxService} from '../cash-box/cash-box.service';
+import {ShortListService} from '../shortlist/shortlist.service';
 
 @Injectable()
 export class InventoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cashBoxService: CashBoxService,
+    private shortListService: ShortListService,
+  ) {}
 
   async findAll(tenantId: string, q?: string) {
     // Allow filtering by query string for POS search/typeahead. We match itemName, variant SKU, variant name, and product name.
@@ -72,7 +78,7 @@ export class InventoryService {
     }));
   }
 
-  async create(tenantId: string, data: any) {
+  async create(tenantId: string, userId: string, data: any) {
     const {
       maxDiscount,
       variantId: providedVariantId,
@@ -83,6 +89,7 @@ export class InventoryService {
       manufacturerName,
       itemName,
       batchNo: providedBatchNo,
+      fundSource,
       ...rest
     } = data;
 
@@ -215,6 +222,57 @@ export class InventoryService {
             updatedAt: new Date(),
           },
         });
+
+        // Cash box integration based on fundSource
+        if (fundSource && result.purchasePrice && result.lastRestockQty) {
+          const totalCost = result.purchasePrice * result.lastRestockQty;
+          try {
+            if (fundSource === 'CASH_BOX') {
+              await this.cashBoxService.createEntry(tenantId, userId, {
+                entryType: 'INVENTORY_OUT' as any,
+                amount: totalCost,
+                note: `Stock purchase: ${result.itemName || 'item'}`,
+                referenceId: result.id,
+              });
+            } else if (fundSource === 'NEW_INVESTMENT') {
+              await this.cashBoxService.createEntry(tenantId, userId, {
+                entryType: 'NEW_INVESTMENT_IN' as any,
+                amount: totalCost,
+                note: `New investment for: ${result.itemName || 'item'}`,
+                referenceId: result.id,
+              });
+              await this.cashBoxService.createEntry(tenantId, userId, {
+                entryType: 'INVENTORY_OUT' as any,
+                amount: totalCost,
+                note: `Stock purchase (new investment): ${result.itemName || 'item'}`,
+                referenceId: result.id,
+              });
+            } else if (fundSource === 'LOAN') {
+              await this.cashBoxService.createEntry(tenantId, userId, {
+                entryType: 'LOAN_IN' as any,
+                amount: totalCost,
+                note: `Loan for stock: ${result.itemName || 'item'}`,
+                referenceId: result.id,
+              });
+              await this.cashBoxService.createEntry(tenantId, userId, {
+                entryType: 'INVENTORY_OUT' as any,
+                amount: totalCost,
+                note: `Stock purchase (loan): ${result.itemName || 'item'}`,
+                referenceId: result.id,
+              });
+            }
+          } catch (err: any) {
+            console.error('[CashBox] Failed to create inventory cashbox entry:', err?.message);
+          }
+        }
+
+        // Auto-remove from shortlist on restock
+        try {
+          await this.shortListService.remove(result.id, tenantId);
+        } catch (_) {
+          // Not on shortlist — ignore
+        }
+
         return {
           ...result,
           maxDiscount: result.maxDiscountRate,
@@ -241,6 +299,57 @@ export class InventoryService {
         tenantId,
       },
     });
+
+    // Cash box integration based on fundSource
+    if (fundSource && result.purchasePrice && result.quantity) {
+      const totalCost = result.purchasePrice * result.quantity;
+      try {
+        if (fundSource === 'CASH_BOX') {
+          await this.cashBoxService.createEntry(tenantId, userId, {
+            entryType: 'INVENTORY_OUT' as any,
+            amount: totalCost,
+            note: `Stock purchase: ${result.itemName || 'item'}`,
+            referenceId: result.id,
+          });
+        } else if (fundSource === 'NEW_INVESTMENT') {
+          await this.cashBoxService.createEntry(tenantId, userId, {
+            entryType: 'NEW_INVESTMENT_IN' as any,
+            amount: totalCost,
+            note: `New investment for: ${result.itemName || 'item'}`,
+            referenceId: result.id,
+          });
+          await this.cashBoxService.createEntry(tenantId, userId, {
+            entryType: 'INVENTORY_OUT' as any,
+            amount: totalCost,
+            note: `Stock purchase (new investment): ${result.itemName || 'item'}`,
+            referenceId: result.id,
+          });
+        } else if (fundSource === 'LOAN') {
+          await this.cashBoxService.createEntry(tenantId, userId, {
+            entryType: 'LOAN_IN' as any,
+            amount: totalCost,
+            note: `Loan for stock: ${result.itemName || 'item'}`,
+            referenceId: result.id,
+          });
+          await this.cashBoxService.createEntry(tenantId, userId, {
+            entryType: 'INVENTORY_OUT' as any,
+            amount: totalCost,
+            note: `Stock purchase (loan): ${result.itemName || 'item'}`,
+            referenceId: result.id,
+          });
+        }
+      } catch (err: any) {
+        console.error('[CashBox] Failed to create inventory cashbox entry:', err?.message);
+      }
+    }
+
+    // Auto-remove from shortlist on creation
+    try {
+      await this.shortListService.remove(result.id, tenantId);
+    } catch (_) {
+      // Not on shortlist — ignore
+    }
+
     return {
       ...result,
       maxDiscount: result.maxDiscountRate,

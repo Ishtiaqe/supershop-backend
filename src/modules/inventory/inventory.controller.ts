@@ -37,7 +37,7 @@ export class InventoryController {
   @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
   @ApiOperation({summary: 'Add inventory item'})
   async create(@CurrentUser() user: any, @Body() data: CreateInventoryDto) {
-    return this.inventoryService.create(user.tenantId, data);
+    return this.inventoryService.create(user.tenantId, user.id, data);
   }
 
   @Put(':id')
