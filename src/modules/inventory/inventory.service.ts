@@ -12,12 +12,15 @@ export class InventoryService {
   constructor(
     private prisma: PrismaService,
     private cashBoxService: CashBoxService,
-    private shortListService: ShortListService,
+    private shortListService: ShortListService
   ) {}
 
-  async findAll(tenantId: string, q?: string) {
+  async findAll(tenantId: string, q?: string, variantId?: string) {
     // Allow filtering by query string for POS search/typeahead. We match itemName, variant SKU, variant name, and product name.
     const where: any = {tenantId};
+    if (variantId) {
+      where.variantId = variantId;
+    }
     if (q && q.length > 0) {
       where.AND = [
         {
@@ -244,7 +247,9 @@ export class InventoryService {
               await this.cashBoxService.createEntry(tenantId, userId, {
                 entryType: 'INVENTORY_OUT' as any,
                 amount: totalCost,
-                note: `Stock purchase (new investment): ${result.itemName || 'item'}`,
+                note: `Stock purchase (new investment): ${
+                  result.itemName || 'item'
+                }`,
                 referenceId: result.id,
               });
             } else if (fundSource === 'LOAN') {
@@ -262,7 +267,10 @@ export class InventoryService {
               });
             }
           } catch (err: any) {
-            console.error('[CashBox] Failed to create inventory cashbox entry:', err?.message);
+            console.error(
+              '[CashBox] Failed to create inventory cashbox entry:',
+              err?.message
+            );
           }
         }
 
@@ -321,7 +329,9 @@ export class InventoryService {
           await this.cashBoxService.createEntry(tenantId, userId, {
             entryType: 'INVENTORY_OUT' as any,
             amount: totalCost,
-            note: `Stock purchase (new investment): ${result.itemName || 'item'}`,
+            note: `Stock purchase (new investment): ${
+              result.itemName || 'item'
+            }`,
             referenceId: result.id,
           });
         } else if (fundSource === 'LOAN') {
@@ -339,7 +349,10 @@ export class InventoryService {
           });
         }
       } catch (err: any) {
-        console.error('[CashBox] Failed to create inventory cashbox entry:', err?.message);
+        console.error(
+          '[CashBox] Failed to create inventory cashbox entry:',
+          err?.message
+        );
       }
     }
 

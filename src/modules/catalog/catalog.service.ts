@@ -1,9 +1,28 @@
-import {Injectable} from '@nestjs/common';
+import {Injectable, NotFoundException} from '@nestjs/common';
 import {PrismaService} from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class CatalogService {
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * Get a single catalog item (variant) by ID with full product info
+   */
+  async getCatalogItemById(tenantId: string, variantId: string) {
+    const item = await this.prisma.productVariant.findFirst({
+      where: {id: variantId, tenantId},
+      include: {
+        product: {
+          include: {
+            category: true,
+            brand: true,
+          },
+        },
+      },
+    });
+    if (!item) throw new NotFoundException('Catalog item not found');
+    return item;
+  }
 
   /**
    * Search catalog items (products and variants) by name

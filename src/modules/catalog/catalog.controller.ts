@@ -39,6 +39,13 @@ export class CatalogController {
     return this.catalogService.getCatalogItems(user.tenantId);
   }
 
+  @Get(':id')
+  @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
+  @ApiOperation({summary: 'Get catalog item by variant ID'})
+  async getById(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.catalogService.getCatalogItemById(user.tenantId, id);
+  }
+
   @Post()
   @Roles(UserRole.OWNER)
   @ApiOperation({summary: 'Create new catalog item'})
