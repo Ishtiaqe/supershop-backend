@@ -9,11 +9,23 @@ export class SalesService {
   constructor(
     private prisma: PrismaService,
     private shortListService: ShortListService,
-    private cashBoxService: CashBoxService,
+    private cashBoxService: CashBoxService
   ) {}
 
   async create(tenantId: string, employeeId: string, data: any) {
     const {items, ...saleData} = data;
+
+    // Validate CREDIT sales
+    if (saleData.paymentMethod === 'CREDIT') {
+      if (!saleData.customerName?.trim() || !saleData.customerPhone?.trim()) {
+        throw new BadRequestException(
+          'Customer name and phone are required for credit sales'
+        );
+      }
+      const paid = saleData.amountPaid ?? 0;
+      if (paid < 0)
+        throw new BadRequestException('amountPaid cannot be negative');
+    }
 
     // Calculate total
     let totalAmount = 0;
@@ -89,6 +101,12 @@ export class SalesService {
         totalAmount,
         totalProfit,
         receiptNumber: `${Date.now()}`,
+        amountPaid:
+          saleData.paymentMethod === 'CREDIT' ? saleData.amountPaid ?? 0 : null,
+        dueAmount:
+          saleData.paymentMethod === 'CREDIT'
+            ? Math.max(0, totalAmount - (saleData.amountPaid ?? 0))
+            : null,
         items: {
           create: items.map((item: any) => ({
             inventoryId: item.inventoryId,
@@ -125,18 +143,28 @@ export class SalesService {
       await this.shortListService.autoCheckAndAdd(item.inventoryId, tenantId);
     }
 
-    // Auto-create a cash box SALE_IN entry for CASH payments
-    if (!saleData.paymentMethod || saleData.paymentMethod === 'CASH') {
+    // Auto-create a cash box SALE_IN entry for all payment methods
+    const cashReceivedNow =
+      saleData.paymentMethod === 'CREDIT'
+        ? saleData.amountPaid ?? 0
+        : sale.totalAmount;
+
+    if (cashReceivedNow > 0) {
       try {
         await this.cashBoxService.createEntry(tenantId, employeeId, {
           entryType: 'SALE_IN' as any,
-          amount: sale.totalAmount,
-          note: `Sale #${sale.receiptNumber}`,
+          amount: cashReceivedNow,
+          note: `Sale #${sale.receiptNumber} — ${
+            saleData.paymentMethod ?? 'CASH'
+          }`,
           referenceId: sale.id,
           entryDate: sale.saleTime,
         });
-      } catch (err) {
-        console.error('[CashBox] Failed to create SALE_IN entry:', err?.message);
+      } catch (err: any) {
+        console.error(
+          '[CashBox] Failed to create SALE_IN entry:',
+          err?.message
+        );
       }
     }
 
