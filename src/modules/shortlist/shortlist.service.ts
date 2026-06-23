@@ -1,6 +1,6 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import {Injectable, BadRequestException} from '@nestjs/common';
+import {PrismaService} from '../../common/prisma/prisma.service';
+import {Prisma} from '@prisma/client';
 
 @Injectable()
 export class ShortListService {
@@ -11,7 +11,7 @@ export class ShortListService {
    */
   private async checkFiftyPercentRule(inventoryId: string): Promise<boolean> {
     const item = await this.prisma.inventoryItem.findUnique({
-      where: { id: inventoryId },
+      where: {id: inventoryId},
     });
 
     if (!item) {
@@ -34,7 +34,7 @@ export class ShortListService {
    */
   private async checkSlowItem(inventoryId: string): Promise<boolean> {
     const item = await this.prisma.inventoryItem.findUnique({
-      where: { id: inventoryId },
+      where: {id: inventoryId},
     });
 
     if (!item || !item.lastMovedDate) {
@@ -49,12 +49,9 @@ export class ShortListService {
    * Auto-add item to short list if it meets 50% rule
    * Called automatically after inventory changes
    */
-  async autoCheckAndAdd(
-    inventoryId: string,
-    tenantId: string,
-  ): Promise<any> {
+  async autoCheckAndAdd(inventoryId: string, tenantId: string): Promise<any> {
     const inventory = await this.prisma.inventoryItem.findUnique({
-      where: { id: inventoryId },
+      where: {id: inventoryId},
     });
 
     if (!inventory || inventory.tenantId !== tenantId) {
@@ -70,7 +67,7 @@ export class ShortListService {
 
     // Check if already in short list
     const existing = await this.prisma.shortList.findUnique({
-      where: { inventoryId },
+      where: {inventoryId},
     });
 
     if (existing) {
@@ -98,24 +95,26 @@ export class ShortListService {
   async toggle(
     inventoryId: string,
     tenantId: string,
-    userId?: string,
+    userId?: string
   ): Promise<any> {
     const inventory = await this.prisma.inventoryItem.findUnique({
-      where: { id: inventoryId },
+      where: {id: inventoryId},
     });
 
     if (!inventory || inventory.tenantId !== tenantId) {
-      throw new BadRequestException('Inventory item not found or does not belong to your tenant');
+      throw new BadRequestException(
+        'Inventory item not found or does not belong to your tenant'
+      );
     }
 
     const existing = await this.prisma.shortList.findUnique({
-      where: { inventoryId },
+      where: {inventoryId},
     });
 
     if (existing) {
       // Remove from short list
       return await this.prisma.shortList.delete({
-        where: { inventoryId },
+        where: {inventoryId},
       });
     }
 
@@ -145,9 +144,9 @@ export class ShortListService {
       sortBy?: 'quantity' | 'addedAt' | 'name';
       sortOrder?: 'asc' | 'desc';
       filterSlow?: boolean;
-    },
+    }
   ): Promise<any> {
-    const where: Prisma.ShortListWhereInput = { tenantId };
+    const where: Prisma.ShortListWhereInput = {tenantId};
 
     if (options?.filterSlow !== undefined) {
       where.isSlowItem = options.filterSlow;
@@ -170,13 +169,13 @@ export class ShortListService {
       take: options?.take || 100,
       orderBy:
         options?.sortBy === 'quantity'
-          ? { inventory: { quantity: options?.sortOrder || 'asc' } }
+          ? {inventory: {quantity: options?.sortOrder || 'asc'}}
           : options?.sortBy === 'name'
-            ? { inventory: { itemName: options?.sortOrder || 'asc' } }
-            : { addedAt: options?.sortOrder || 'desc' },
+          ? {inventory: {itemName: options?.sortOrder || 'asc'}}
+          : {addedAt: options?.sortOrder || 'desc'},
     });
 
-    const total = await this.prisma.shortList.count({ where });
+    const total = await this.prisma.shortList.count({where});
 
     return {
       data: items,
@@ -191,7 +190,7 @@ export class ShortListService {
    */
   async findOne(id: string, tenantId: string): Promise<any> {
     const item = await this.prisma.shortList.findUnique({
-      where: { inventoryId: id },
+      where: {inventoryId: id},
       include: {
         inventory: {
           include: {
@@ -217,7 +216,7 @@ export class ShortListService {
    */
   async markAsSlow(inventoryId: string, tenantId: string): Promise<any> {
     const inventory = await this.prisma.inventoryItem.findUnique({
-      where: { id: inventoryId },
+      where: {id: inventoryId},
     });
 
     if (!inventory || inventory.tenantId !== tenantId) {
@@ -225,7 +224,7 @@ export class ShortListService {
     }
 
     const item = await this.prisma.shortList.findUnique({
-      where: { inventoryId },
+      where: {inventoryId},
     });
 
     if (!item) {
@@ -237,14 +236,14 @@ export class ShortListService {
           reason: 'slow_item',
           addedBy: 'system',
         },
-        include: { inventory: true },
+        include: {inventory: true},
       });
     }
 
     return await this.prisma.shortList.update({
-      where: { inventoryId },
-      data: { isSlowItem: true },
-      include: { inventory: true },
+      where: {inventoryId},
+      data: {isSlowItem: true},
+      include: {inventory: true},
     });
   }
 
@@ -253,20 +252,17 @@ export class ShortListService {
    */
   async updateLastMoved(inventoryId: string): Promise<void> {
     await this.prisma.inventoryItem.update({
-      where: { id: inventoryId },
-      data: { lastMovedDate: new Date() },
+      where: {id: inventoryId},
+      data: {lastMovedDate: new Date()},
     });
   }
 
   /**
    * Update lastRestockQty and lastRestockDate when item is restocked
    */
-  async updateRestock(
-    inventoryId: string,
-    newQuantity: number,
-  ): Promise<void> {
+  async updateRestock(inventoryId: string, newQuantity: number): Promise<void> {
     await this.prisma.inventoryItem.update({
-      where: { id: inventoryId },
+      where: {id: inventoryId},
       data: {
         lastRestockQty: newQuantity,
         lastRestockDate: new Date(),
@@ -279,11 +275,11 @@ export class ShortListService {
    */
   async getStats(tenantId: string): Promise<any> {
     const total = await this.prisma.shortList.count({
-      where: { tenantId },
+      where: {tenantId},
     });
 
     const slowItems = await this.prisma.shortList.count({
-      where: { tenantId, isSlowItem: true },
+      where: {tenantId, isSlowItem: true},
     });
 
     const manualItems = await this.prisma.shortList.count({
@@ -302,17 +298,17 @@ export class ShortListService {
 
     // Get all short list inventory IDs then aggregate
     const shortListItems = await this.prisma.shortList.findMany({
-      where: { tenantId },
-      select: { inventoryId: true },
+      where: {tenantId},
+      select: {inventoryId: true},
     });
 
-    const inventoryIds = shortListItems.map(item => item.inventoryId);
+    const inventoryIds = shortListItems.map((item) => item.inventoryId);
 
     const totalQuantity = await this.prisma.inventoryItem.aggregate({
       where: {
-        id: { in: inventoryIds },
+        id: {in: inventoryIds},
       },
-      _sum: { quantity: true },
+      _sum: {quantity: true},
     });
 
     return {
@@ -329,7 +325,7 @@ export class ShortListService {
    */
   async remove(inventoryId: string, tenantId: string): Promise<void> {
     const item = await this.prisma.shortList.findUnique({
-      where: { inventoryId },
+      where: {inventoryId},
     });
 
     if (!item || item.tenantId !== tenantId) {
@@ -337,7 +333,7 @@ export class ShortListService {
     }
 
     await this.prisma.shortList.delete({
-      where: { inventoryId },
+      where: {inventoryId},
     });
   }
 }

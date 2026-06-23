@@ -1,89 +1,27 @@
-import { Injectable, Logger, BadRequestException } from "@nestjs/common";
-import { PrismaService } from "../../common/prisma/prisma.service";
-import * as fs from "fs";
-import * as path from "path";
-import * as child_process from "child_process";
-import * as util from "util";
-
-const exec = util.promisify(child_process.exec);
+import {Injectable, Logger, BadRequestException} from '@nestjs/common';
+import {Prisma} from '@prisma/client';
+import {PrismaService} from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class BackupService {
   private readonly logger = new Logger(BackupService.name);
-  private readonly backupDir = path.join(process.cwd(), "backups");
 
-  constructor(private readonly prisma: PrismaService) {
-    // Ensure backups directory exists
-    if (!fs.existsSync(this.backupDir)) {
-      fs.mkdirSync(this.backupDir, { recursive: true });
-    }
-  }
-
-  async exportBackup(): Promise<Buffer> {
-    try {
-      this.logger.log("Starting database backup export...");
-
-      // Get database credentials from environment
-      const dbUrl = process.env.DATABASE_URL;
-      if (!dbUrl) {
-        throw new Error("DATABASE_URL not configured");
-      }
-
-      // Parse PostgreSQL connection URL
-      const url = new URL(dbUrl);
-      const host = url.hostname;
-      const port = url.port || "5432";
-      const database = url.pathname.substring(1);
-      const username = url.username;
-      const password = url.password;
-
-      // Generate timestamp for backup file
-      const timestamp = new Date()
-        .toISOString()
-        .replace(/[:.]/g, "-")
-        .split("T")[0];
-      const backupFile = path.join(this.backupDir, `backup_${timestamp}.sql`);
-
-      // Execute pg_dump
-      const pgDumpCommand = `PGPASSWORD="${password}" pg_dump -h ${host} -p ${port} -U ${username} -d ${database} --no-password`;
-
-      this.logger.log(
-        `Executing pg_dump command for database: ${database}`
-      );
-
-      const { stdout } = await exec(pgDumpCommand);
-
-      // Save to file
-      fs.writeFileSync(backupFile, stdout);
-      this.logger.log(`Backup saved to: ${backupFile}`);
-
-      // Convert to buffer
-      const buffer = Buffer.from(stdout);
-      this.logger.log(
-        `Backup export completed. Size: ${(buffer.length / 1024 / 1024).toFixed(2)}MB`
-      );
-
-      return buffer;
-    } catch (error) {
-      this.logger.error("Backup export failed:", error);
-      throw new BadRequestException(
-        `Failed to export backup: ${error.message}`
-      );
-    }
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Export tenant-specific backup including all inventory, sales, and related data
    */
   async exportTenantBackup(tenantId: string): Promise<Buffer> {
     try {
-      this.logger.log(`Starting tenant backup export for tenantId: ${tenantId}`);
+      this.logger.log(
+        `Starting tenant backup export for tenantId: ${tenantId}`
+      );
 
       const backupData: any = {
         metadata: {
           exportDate: new Date().toISOString(),
           tenantId,
-          version: "1.0",
+          version: '1.0',
         },
         data: {},
       };
@@ -99,28 +37,28 @@ export class BackupService {
         saleItems,
         shortList,
       ] = await Promise.all([
-        this.prisma.tenant.findUnique({ where: { id: tenantId } }),
-        this.prisma.user.findMany({ where: { tenantId } }),
-        this.prisma.product.findMany({ where: { tenantId } }),
+        this.prisma.tenant.findUnique({where: {id: tenantId}}),
+        this.prisma.user.findMany({where: {tenantId}}),
+        this.prisma.product.findMany({where: {tenantId}}),
         this.prisma.productVariant.findMany({
-          where: { tenantId },
-          include: { product: true },
+          where: {tenantId},
+          include: {product: true},
         }),
         this.prisma.inventoryItem.findMany({
-          where: { tenantId },
-          include: { variant: { include: { product: true } } },
+          where: {tenantId},
+          include: {variant: {include: {product: true}}},
         }),
         this.prisma.sale.findMany({
-          where: { tenantId },
-          include: { items: { include: { inventory: true } }, employee: true },
+          where: {tenantId},
+          include: {items: {include: {inventory: true}}, employee: true},
         }),
         this.prisma.saleItem.findMany({
-          where: { inventory: { tenantId } },
-          include: { inventory: true },
+          where: {inventory: {tenantId}},
+          include: {inventory: true},
         }),
         this.prisma.shortList.findMany({
-          where: { tenantId },
-          include: { inventory: { include: { variant: true } } },
+          where: {tenantId},
+          include: {inventory: {include: {variant: true}}},
         }),
       ]);
 
@@ -136,101 +74,272 @@ export class BackupService {
       };
 
       const jsonString = JSON.stringify(backupData, null, 2);
-      const buffer = Buffer.from(jsonString, "utf-8");
+      const buffer = Buffer.from(jsonString, 'utf-8');
 
       this.logger.log(
-        `Tenant backup export completed. Size: ${(buffer.length / 1024 / 1024).toFixed(2)}MB`
+        `Tenant backup export completed. Size: ${(
+          buffer.length /
+          1024 /
+          1024
+        ).toFixed(2)}MB`
       );
 
       return buffer;
     } catch (error) {
-      this.logger.error("Tenant backup export failed:", error);
+      this.logger.error('Tenant backup export failed:', error);
       throw new BadRequestException(
         `Failed to export tenant backup: ${error.message}`
       );
     }
   }
 
-  async importBackup(fileBuffer: Buffer): Promise<{ success: boolean }> {
+  /**
+   * Restore a tenant's catalog/inventory/sales data from a backup produced by
+   * exportTenantBackup. Scoped entirely to the calling tenant: the backup's
+   * tenantId must match, and only that tenant's products, variants, inventory,
+   * sales, sale items, and short-list entries are replaced. User accounts and
+   * shop settings are never touched, so the restoring owner can't lock
+   * themselves out.
+   */
+  async importTenantBackup(
+    tenantId: string,
+    requestingUserId: string,
+    fileBuffer: Buffer
+  ): Promise<{success: boolean; restored: Record<string, number>}> {
+    let backup: any;
     try {
-      this.logger.log("Starting database backup restore...");
+      backup = JSON.parse(fileBuffer.toString('utf-8'));
+    } catch {
+      throw new BadRequestException('Invalid backup file: not valid JSON');
+    }
 
-      // Get database credentials from environment
-      const dbUrl = process.env.DATABASE_URL;
-      if (!dbUrl) {
-        throw new Error("DATABASE_URL not configured");
-      }
-
-      // Parse PostgreSQL connection URL
-      const url = new URL(dbUrl);
-      const host = url.hostname;
-      const port = url.port || "5432";
-      const database = url.pathname.substring(1);
-      const username = url.username;
-      const password = url.password;
-
-      // Create temporary file for backup
-      const tempFile = path.join(
-        this.backupDir,
-        `restore_temp_${Date.now()}.sql`
+    if (!backup?.metadata?.tenantId || !backup?.data) {
+      throw new BadRequestException(
+        'Invalid backup file: missing metadata or data'
       );
-      fs.writeFileSync(tempFile, fileBuffer);
+    }
 
-      this.logger.log(
-        `Temporary backup file created at: ${tempFile}`
+    if (backup.metadata.tenantId !== tenantId) {
+      throw new BadRequestException(
+        'This backup belongs to a different shop and cannot be restored here'
+      );
+    }
+
+    const data = backup.data ?? {};
+    const products: any[] = Array.isArray(data.products) ? data.products : [];
+    const variants: any[] = Array.isArray(data.variants) ? data.variants : [];
+    const inventory: any[] = Array.isArray(data.inventory)
+      ? data.inventory
+      : [];
+    const sales: any[] = Array.isArray(data.sales) ? data.sales : [];
+    const saleItems: any[] = Array.isArray(data.saleItems)
+      ? data.saleItems
+      : [];
+    const shortList: any[] = Array.isArray(data.shortList)
+      ? data.shortList
+      : [];
+
+    const tenantUsers = await this.prisma.user.findMany({
+      where: {tenantId},
+      select: {id: true},
+    });
+    const tenantUserIds = new Set(tenantUsers.map((u) => u.id));
+
+    const productIds = new Set<string>();
+    const cleanProducts = products.map((p) => {
+      const {brand, category, variants: _variants, tenant, ...rest} = p;
+      productIds.add(rest.id);
+      return {...rest, tenantId};
+    });
+
+    const variantIds = new Set<string>();
+    const cleanVariants = variants
+      .filter((v) => productIds.has(v.productId))
+      .map((v) => {
+        const {product, inventoryItems, tenant, ...rest} = v;
+        variantIds.add(rest.id);
+        return {...rest, tenantId};
+      });
+
+    const inventoryIds = new Set<string>();
+    const cleanInventory = inventory.map((i) => {
+      const {
+        variant,
+        saleItems: _saleItems,
+        shortListEntry,
+        tenant,
+        ...rest
+      } = i;
+      inventoryIds.add(rest.id);
+      return {
+        ...rest,
+        tenantId,
+        variantId:
+          rest.variantId && variantIds.has(rest.variantId)
+            ? rest.variantId
+            : null,
+      };
+    });
+
+    const saleIds = new Set<string>();
+    const cleanSales = sales.map((s) => {
+      const {items, employee, tenant, ...rest} = s;
+      saleIds.add(rest.id);
+      return {
+        ...rest,
+        tenantId,
+        employeeId: tenantUserIds.has(rest.employeeId)
+          ? rest.employeeId
+          : requestingUserId,
+      };
+    });
+
+    const cleanSaleItems = saleItems
+      .filter(
+        (si) => saleIds.has(si.saleId) && inventoryIds.has(si.inventoryId)
+      )
+      .map((si) => {
+        const {inventory: _inventory, sale, ...rest} = si;
+        return rest;
+      });
+
+    const cleanShortList = shortList
+      .filter((sl) => inventoryIds.has(sl.inventoryId))
+      .map((sl) => {
+        const {inventory: _inventory, tenant, ...rest} = sl;
+        return {...rest, tenantId};
+      });
+
+    this.logger.log(
+      `Restoring tenant ${tenantId}: ${cleanProducts.length} products, ${cleanVariants.length} variants, ` +
+        `${cleanInventory.length} inventory items, ${cleanSales.length} sales, ${cleanSaleItems.length} sale items, ` +
+        `${cleanShortList.length} short-list entries`
+    );
+
+    try {
+      const restored = await this.prisma.$transaction(
+        async (tx) => {
+          // Delete existing tenant data, children before parents
+          await this.deleteTenantDataInTransaction(tx, tenantId);
+
+          // Recreate, parents before children
+          if (cleanProducts.length) {
+            await tx.product.createMany({data: cleanProducts});
+          }
+          if (cleanVariants.length) {
+            await tx.productVariant.createMany({data: cleanVariants});
+          }
+          if (cleanInventory.length) {
+            await tx.inventoryItem.createMany({data: cleanInventory});
+          }
+          if (cleanSales.length) {
+            await tx.sale.createMany({data: cleanSales});
+          }
+          if (cleanSaleItems.length) {
+            await tx.saleItem.createMany({data: cleanSaleItems});
+          }
+          if (cleanShortList.length) {
+            await tx.shortList.createMany({data: cleanShortList});
+          }
+
+          return {
+            products: cleanProducts.length,
+            variants: cleanVariants.length,
+            inventory: cleanInventory.length,
+            sales: cleanSales.length,
+            saleItems: cleanSaleItems.length,
+            shortList: cleanShortList.length,
+          };
+        },
+        {timeout: 60000, maxWait: 10000}
       );
 
-      // Execute pg_restore or psql
-      // For .sql files, we use psql
-      const psqlCommand = `PGPASSWORD="${password}" psql -h ${host} -p ${port} -U ${username} -d ${database} -f "${tempFile}"`;
-
-      this.logger.log(
-        `Executing psql command to restore database: ${database}`
-      );
-
-      await exec(psqlCommand, { maxBuffer: 50 * 1024 * 1024 }); // 50MB buffer
-
-      this.logger.log("Database restore completed successfully");
-
-      // Clean up temporary file
-      fs.unlinkSync(tempFile);
-
-      return { success: true };
+      this.logger.log(`Tenant ${tenantId} restore completed successfully`);
+      return {success: true, restored};
     } catch (error) {
-      this.logger.error("Backup restore failed:", error);
+      this.logger.error(`Tenant ${tenantId} restore failed:`, error);
       throw new BadRequestException(
         `Failed to restore backup: ${error.message}`
       );
     }
   }
 
-  async getBackupStatus(): Promise<{
-    lastBackup: Date | null;
-    backupSize: number | null;
+  /**
+   * Delete a tenant's catalog/inventory/sales data. Children are removed
+   * before parents to satisfy FK constraints. User accounts and shop
+   * settings are never touched.
+   */
+  private async deleteTenantDataInTransaction(
+    tx: Prisma.TransactionClient,
+    tenantId: string
+  ): Promise<void> {
+    await tx.shortList.deleteMany({where: {tenantId}});
+    await tx.saleItem.deleteMany({where: {sale: {tenantId}}});
+    await tx.sale.deleteMany({where: {tenantId}});
+    await tx.inventoryItem.deleteMany({where: {tenantId}});
+    await tx.productVariant.deleteMany({where: {tenantId}});
+    await tx.product.deleteMany({where: {tenantId}});
+  }
+
+  /**
+   * Permanently delete all of a tenant's products, variants, inventory,
+   * sales, sale items, and short-list entries. Intended to be used together
+   * with exportTenantBackup/importTenantBackup for a clean restore.
+   */
+  async deleteTenantData(tenantId: string): Promise<{
+    success: boolean;
+    deleted: Record<string, number>;
   }> {
+    const before = await this.getBackupStatus(tenantId);
+    const [shortListCount, saleItemCount] = await Promise.all([
+      this.prisma.shortList.count({where: {tenantId}}),
+      this.prisma.saleItem.count({where: {sale: {tenantId}}}),
+    ]);
+
     try {
-      const files = fs.readdirSync(this.backupDir);
-      const sqlFiles = files
-        .filter((f) => f.startsWith("backup_") && f.endsWith(".sql"))
-        .sort()
-        .reverse();
+      await this.prisma.$transaction(
+        async (tx) => {
+          await this.deleteTenantDataInTransaction(tx, tenantId);
+        },
+        {timeout: 60000, maxWait: 10000}
+      );
 
-      if (sqlFiles.length === 0) {
-        return { lastBackup: null, backupSize: null };
-      }
-
-      const latestFile = sqlFiles[0];
-      const filePath = path.join(this.backupDir, latestFile);
-      const stats = fs.statSync(filePath);
-
+      this.logger.log(`Tenant ${tenantId} data deleted successfully`);
       return {
-        lastBackup: stats.mtime,
-        backupSize: stats.size,
+        success: true,
+        deleted: {
+          products: before.productCount,
+          variants: before.variantCount,
+          inventory: before.inventoryCount,
+          sales: before.saleCount,
+          saleItems: saleItemCount,
+          shortList: shortListCount,
+        },
       };
     } catch (error) {
-      this.logger.error("Failed to get backup status:", error);
-      return { lastBackup: null, backupSize: null };
+      this.logger.error(`Tenant ${tenantId} data deletion failed:`, error);
+      throw new BadRequestException(`Failed to delete data: ${error.message}`);
     }
+  }
+
+  /**
+   * Summary of what a backup for this tenant would currently contain.
+   */
+  async getBackupStatus(tenantId: string): Promise<{
+    productCount: number;
+    variantCount: number;
+    inventoryCount: number;
+    saleCount: number;
+  }> {
+    const [productCount, variantCount, inventoryCount, saleCount] =
+      await Promise.all([
+        this.prisma.product.count({where: {tenantId}}),
+        this.prisma.productVariant.count({where: {tenantId}}),
+        this.prisma.inventoryItem.count({where: {tenantId}}),
+        this.prisma.sale.count({where: {tenantId}}),
+      ]);
+
+    return {productCount, variantCount, inventoryCount, saleCount};
   }
 
   async exportUserData(userId: string): Promise<Buffer> {
@@ -239,7 +348,7 @@ export class BackupService {
 
       // Fetch user first to get tenantId
       const user = await this.prisma.user.findUnique({
-        where: { id: userId },
+        where: {id: userId},
         include: {
           tenant: {
             select: {
@@ -257,19 +366,19 @@ export class BackupService {
       // Fetch all user-related data from all tables
       const [sales, shortListItems, inventoryItems] = await Promise.all([
         this.prisma.sale.findMany({
-          where: { employeeId: userId },
+          where: {employeeId: userId},
           include: {
             items: true,
           },
         }),
         this.prisma.shortList.findMany({
-          where: { tenantId: user.tenantId },
+          where: {tenantId: user.tenantId},
           include: {
             inventory: true,
           },
         }),
         this.prisma.inventoryItem.findMany({
-          where: { tenantId: user.tenantId },
+          where: {tenantId: user.tenantId},
           take: 100, // Limit to prevent huge exports
         }),
       ]);
@@ -295,21 +404,29 @@ export class BackupService {
         },
         summary: {
           totalSales: sales.length,
-          totalRevenue: sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0),
+          totalRevenue: sales.reduce(
+            (sum, sale) => sum + (sale.totalAmount || 0),
+            0
+          ),
           shortListCount: shortListItems.length,
           inventoryItemsCount: inventoryItems.length,
         },
       };
 
-      const jsonBuffer = Buffer.from(JSON.stringify(exportData, null, 2), 'utf-8');
+      const jsonBuffer = Buffer.from(
+        JSON.stringify(exportData, null, 2),
+        'utf-8'
+      );
 
       this.logger.log(
-        `User data export completed for userId: ${userId}. Size: ${(jsonBuffer.length / 1024).toFixed(2)}KB`
+        `User data export completed for userId: ${userId}. Size: ${(
+          jsonBuffer.length / 1024
+        ).toFixed(2)}KB`
       );
 
       return jsonBuffer;
     } catch (error) {
-      this.logger.error("User data export failed:", error);
+      this.logger.error('User data export failed:', error);
       throw new BadRequestException(
         `Failed to export user data: ${error.message}`
       );

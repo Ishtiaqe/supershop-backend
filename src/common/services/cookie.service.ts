@@ -4,9 +4,9 @@
  * Handles all cookie-related operations, removing this concern from controllers
  */
 
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import {Injectable} from '@nestjs/common';
+import {ConfigService} from '@nestjs/config';
+import {Response} from 'express';
 
 export interface TokenPair {
   accessToken: string;
@@ -51,8 +51,7 @@ export class CookieService {
   private refreshTokenExpiresIn: number;
 
   constructor(private configService: ConfigService) {
-    this.isProduction =
-      this.configService.get('NODE_ENV') === 'production';
+    this.isProduction = this.configService.get('NODE_ENV') === 'production';
     this.accessTokenExpiresIn = parseTimeToMs(
       this.configService.get('JWT_EXPIRES_IN') || '15m'
     );
@@ -110,8 +109,8 @@ export class CookieService {
    * Clear auth cookies (for logout)
    */
   clearTokenCookies(response: Response): void {
-    response.clearCookie('accessToken', { path: '/' });
-    response.clearCookie('refreshToken', { path: '/' });
+    response.clearCookie('accessToken', {path: '/'});
+    response.clearCookie('refreshToken', {path: '/'});
   }
 
   /**

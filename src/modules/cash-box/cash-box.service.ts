@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { CashBoxEntryType, Prisma } from '@prisma/client';
-import { CreateCashBoxEntryDto } from './dto/create-cash-box-entry.dto';
-import { GetCashBoxEntriesDto } from './dto/get-cash-box-entries.dto';
-import { PrismaService } from '../../common/prisma/prisma.service';
+import {Injectable} from '@nestjs/common';
+import {CashBoxEntryType, Prisma} from '@prisma/client';
+import {CreateCashBoxEntryDto} from './dto/create-cash-box-entry.dto';
+import {GetCashBoxEntriesDto} from './dto/get-cash-box-entries.dto';
+import {PrismaService} from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class CashBoxService {
@@ -18,7 +18,7 @@ export class CashBoxService {
       note?: string;
       referenceId?: string;
       entryDate?: Date;
-    },
+    }
   ) {
     return this.prisma.cashBoxEntry.create({
       data: {
@@ -37,7 +37,7 @@ export class CashBoxService {
   async createManualEntry(
     tenantId: string,
     userId: string,
-    dto: CreateCashBoxEntryDto,
+    dto: CreateCashBoxEntryDto
   ) {
     return this.createEntry(tenantId, userId, {
       entryType: dto.entryType,
@@ -49,10 +49,10 @@ export class CashBoxService {
 
   /** Paginated list of entries */
   async getEntries(tenantId: string, dto: GetCashBoxEntriesDto) {
-    const { page = 1, limit = 50, startDate, endDate, entryType } = dto;
+    const {page = 1, limit = 50, startDate, endDate, entryType} = dto;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.CashBoxEntryWhereInput = { tenantId };
+    const where: Prisma.CashBoxEntryWhereInput = {tenantId};
 
     if (startDate || endDate) {
       where.entryDate = {};
@@ -69,22 +69,22 @@ export class CashBoxService {
     const [entries, total] = await Promise.all([
       this.prisma.cashBoxEntry.findMany({
         where,
-        orderBy: { entryDate: 'desc' },
+        orderBy: {entryDate: 'desc'},
         skip,
         take: limit,
         include: {
-          createdBy: { select: { id: true, fullName: true } },
+          createdBy: {select: {id: true, fullName: true}},
         },
       }),
-      this.prisma.cashBoxEntry.count({ where }),
+      this.prisma.cashBoxEntry.count({where}),
     ]);
 
-    return { data: entries, total, page, limit };
+    return {data: entries, total, page, limit};
   }
 
   /** Aggregate summary for a date range */
   async getSummary(tenantId: string, startDate?: string, endDate?: string) {
-    const where: Prisma.CashBoxEntryWhereInput = { tenantId };
+    const where: Prisma.CashBoxEntryWhereInput = {tenantId};
 
     if (startDate || endDate) {
       where.entryDate = {};
@@ -100,16 +100,20 @@ export class CashBoxService {
       this.prisma.cashBoxEntry.aggregate({
         where: {
           ...where,
-          entryType: { in: [CashBoxEntryType.SALE_IN, CashBoxEntryType.MANUAL_IN] },
+          entryType: {
+            in: [CashBoxEntryType.SALE_IN, CashBoxEntryType.MANUAL_IN],
+          },
         },
-        _sum: { amount: true },
+        _sum: {amount: true},
       }),
       this.prisma.cashBoxEntry.aggregate({
         where: {
           ...where,
-          entryType: { in: [CashBoxEntryType.EXPENSE_OUT, CashBoxEntryType.MANUAL_OUT] },
+          entryType: {
+            in: [CashBoxEntryType.EXPENSE_OUT, CashBoxEntryType.MANUAL_OUT],
+          },
         },
-        _sum: { amount: true },
+        _sum: {amount: true},
       }),
     ]);
 
@@ -118,24 +122,29 @@ export class CashBoxService {
       this.prisma.cashBoxEntry.aggregate({
         where: {
           tenantId,
-          entryType: { in: [CashBoxEntryType.SALE_IN, CashBoxEntryType.MANUAL_IN] },
+          entryType: {
+            in: [CashBoxEntryType.SALE_IN, CashBoxEntryType.MANUAL_IN],
+          },
         },
-        _sum: { amount: true },
+        _sum: {amount: true},
       }),
       this.prisma.cashBoxEntry.aggregate({
         where: {
           tenantId,
-          entryType: { in: [CashBoxEntryType.EXPENSE_OUT, CashBoxEntryType.MANUAL_OUT] },
+          entryType: {
+            in: [CashBoxEntryType.EXPENSE_OUT, CashBoxEntryType.MANUAL_OUT],
+          },
         },
-        _sum: { amount: true },
+        _sum: {amount: true},
       }),
     ]);
 
     const cashIn = inAgg._sum.amount ?? 0;
     const cashOut = outAgg._sum.amount ?? 0;
-    const currentBalance = (allTimeIn._sum.amount ?? 0) - (allTimeOut._sum.amount ?? 0);
+    const currentBalance =
+      (allTimeIn._sum.amount ?? 0) - (allTimeOut._sum.amount ?? 0);
 
-    return { cashIn, cashOut, currentBalance };
+    return {cashIn, cashOut, currentBalance};
   }
 
   /** Delete a manual entry (only MANUAL_IN / MANUAL_OUT) */
@@ -145,7 +154,9 @@ export class CashBoxService {
       where: {
         id,
         tenantId,
-        entryType: { in: [CashBoxEntryType.MANUAL_IN, CashBoxEntryType.MANUAL_OUT] },
+        entryType: {
+          in: [CashBoxEntryType.MANUAL_IN, CashBoxEntryType.MANUAL_OUT],
+        },
       },
     });
   }

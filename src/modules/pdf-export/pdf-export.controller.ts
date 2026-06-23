@@ -1,13 +1,7 @@
-import {
-  Controller,
-  Get,
-  UseGuards,
-  Req,
-  Res,
-} from '@nestjs/common';
-import { Response } from 'express';
-import { JwtAuthGuard } from '../../modules/auth/guards/jwt-auth.guard';
-import { PdfExportService } from './pdf-export.service';
+import {Controller, Get, UseGuards, Req, Res} from '@nestjs/common';
+import {Response} from 'express';
+import {JwtAuthGuard} from '../../modules/auth/guards/jwt-auth.guard';
+import {PdfExportService} from './pdf-export.service';
 
 @Controller('export')
 @UseGuards(JwtAuthGuard)
@@ -21,7 +15,7 @@ export class PdfExportController {
   async exportShortListPdf(@Req() req, @Res() res: Response) {
     try {
       const buffer = await this.pdfExportService.generateShortListPdf(
-        req.user.tenantId,
+        req.user.tenantId
       );
 
       res.set({
@@ -49,7 +43,7 @@ export class PdfExportController {
   async exportInventoryPdf(@Req() req, @Res() res: Response) {
     try {
       const buffer = await this.pdfExportService.generateInventoryPdf(
-        req.user.tenantId,
+        req.user.tenantId
       );
 
       res.set({
@@ -77,7 +71,7 @@ export class PdfExportController {
   async exportAnalyticsPdf(@Req() req, @Res() res: Response) {
     try {
       const buffer = await this.pdfExportService.generateAnalyticsPdf(
-        req.user.tenantId,
+        req.user.tenantId
       );
 
       res.set({

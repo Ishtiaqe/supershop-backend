@@ -1,21 +1,25 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import {PrismaService} from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class InventoryService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findAll(tenantId: string, q?: string) {
     // Allow filtering by query string for POS search/typeahead. We match itemName, variant SKU, variant name, and product name.
-    const where: any = { tenantId };
+    const where: any = {tenantId};
     if (q && q.length > 0) {
       where.AND = [
         {
           OR: [
-            { itemName: { contains: q, mode: 'insensitive' } },
-            { variant: { sku: { contains: q, mode: 'insensitive' } } },
-            { variant: { variantName: { contains: q, mode: 'insensitive' } } },
-            { variant: { product: { name: { contains: q, mode: 'insensitive' } } } },
+            {itemName: {contains: q, mode: 'insensitive'}},
+            {variant: {sku: {contains: q, mode: 'insensitive'}}},
+            {variant: {variantName: {contains: q, mode: 'insensitive'}}},
+            {variant: {product: {name: {contains: q, mode: 'insensitive'}}}},
           ],
         },
       ];
@@ -27,16 +31,18 @@ export class InventoryService {
         where,
         include: {
           variant: {
-            include: { product: true },
+            include: {product: true},
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: {createdAt: 'desc'},
         take: 20,
       });
       return items.map((item) => ({
         ...item,
         itemName: item.variant?.product
-          ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
+          ? `${item.variant.product.name}${
+              item.variant.variantName ? ' - ' + item.variant.variantName : ''
+            }`
           : item.itemName,
         lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
         maxDiscount: item.maxDiscountRate,
@@ -52,12 +58,14 @@ export class InventoryService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: {createdAt: 'desc'},
     });
     return items.map((item) => ({
       ...item,
       itemName: item.variant?.product
-        ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
+        ? `${item.variant.product.name}${
+            item.variant.variantName ? ' - ' + item.variant.variantName : ''
+          }`
         : item.itemName,
       lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
       maxDiscount: item.maxDiscountRate,
@@ -122,11 +130,13 @@ export class InventoryService {
     let derivedItemName = itemName;
     if (variantId) {
       const variant = await this.prisma.productVariant.findUnique({
-        where: { id: variantId },
-        include: { product: true },
+        where: {id: variantId},
+        include: {product: true},
       });
       if (variant) {
-        derivedItemName = `${variant.product.name}${variant.variantName ? ' - ' + variant.variantName : ''}`;
+        derivedItemName = `${variant.product.name}${
+          variant.variantName ? ' - ' + variant.variantName : ''
+        }`;
       }
     }
 
@@ -144,10 +154,14 @@ export class InventoryService {
       // Find existing batches for same variant (or same derivedItemName if variant not present) on this date
       const existingItems = variantId
         ? await this.prisma.inventoryItem.findMany({
-            where: { tenantId, variantId, batchNo: { startsWith: prefix } },
+            where: {tenantId, variantId, batchNo: {startsWith: prefix}},
           })
         : await this.prisma.inventoryItem.findMany({
-            where: { tenantId, itemName: derivedItemName, batchNo: { startsWith: prefix } },
+            where: {
+              tenantId,
+              itemName: derivedItemName,
+              batchNo: {startsWith: prefix},
+            },
           });
 
       // Extract sequence numbers and compute max
@@ -188,7 +202,7 @@ export class InventoryService {
       if (targetItem) {
         // Merge with existing item (same variant, expiry, and batch)
         const result = await this.prisma.inventoryItem.update({
-          where: { id: targetItem.id },
+          where: {id: targetItem.id},
           data: {
             quantity: targetItem.quantity + (rest.quantity || 0),
             purchasePrice: rest.purchasePrice,
@@ -196,7 +210,7 @@ export class InventoryService {
             maxDiscountRate: maxDiscount,
             mfgDate: mfgDate,
             itemName: derivedItemName,
-            lastRestockQty: (rest.quantity || 0), // Track this restock quantity
+            lastRestockQty: rest.quantity || 0, // Track this restock quantity
             lastRestockDate: new Date(), // Track restock date
             updatedAt: new Date(),
           },
@@ -235,7 +249,7 @@ export class InventoryService {
 
   async update(id: string, tenantId: string, data: any) {
     const item = await this.prisma.inventoryItem.findFirst({
-      where: { id, tenantId },
+      where: {id, tenantId},
     });
 
     if (!item) {
@@ -245,15 +259,20 @@ export class InventoryService {
     // Validate that retailPrice >= purchasePrice when both are present
     const newPurchasePrice = data.purchasePrice ?? item.purchasePrice;
     const newRetailPrice = data.retailPrice ?? item.retailPrice;
-    
+
     if (newRetailPrice < newPurchasePrice) {
       throw new BadRequestException(
         'Retail price cannot be lower than purchase price'
       );
     }
 
-    const { maxDiscount, variantId: newVariantId, itemName: clientItemName, ...rest } = data;
-    const updateData: any = { ...rest };
+    const {
+      maxDiscount,
+      variantId: newVariantId,
+      itemName: clientItemName,
+      ...rest
+    } = data;
+    const updateData: any = {...rest};
     if (maxDiscount !== undefined) {
       updateData.maxDiscountRate = maxDiscount;
     }
@@ -268,11 +287,13 @@ export class InventoryService {
     // If client changes variantId, recompute itemName using catalog data
     if (newVariantId && newVariantId !== item.variantId) {
       const variant = await this.prisma.productVariant.findUnique({
-        where: { id: newVariantId },
-        include: { product: true },
+        where: {id: newVariantId},
+        include: {product: true},
       });
       if (variant) {
-        updateData.itemName = `${variant.product.name}${variant.variantName ? ' - ' + variant.variantName : ''}`;
+        updateData.itemName = `${variant.product.name}${
+          variant.variantName ? ' - ' + variant.variantName : ''
+        }`;
         updateData.variantId = newVariantId;
       }
     }
@@ -280,16 +301,18 @@ export class InventoryService {
     // If variantId unchanged but client sent itemName, ignore it and ensure itemName is derived from variant
     if (!newVariantId && item.variantId) {
       const variant = await this.prisma.productVariant.findUnique({
-        where: { id: item.variantId },
-        include: { product: true },
+        where: {id: item.variantId},
+        include: {product: true},
       });
       if (variant) {
-        updateData.itemName = `${variant.product.name}${variant.variantName ? ' - ' + variant.variantName : ''}`;
+        updateData.itemName = `${variant.product.name}${
+          variant.variantName ? ' - ' + variant.variantName : ''
+        }`;
       }
     }
 
     const result = await this.prisma.inventoryItem.update({
-      where: { id },
+      where: {id},
       data: updateData,
     });
     return {
@@ -300,26 +323,26 @@ export class InventoryService {
 
   async delete(id: string, tenantId: string) {
     const item = await this.prisma.inventoryItem.findFirst({
-      where: { id, tenantId },
+      where: {id, tenantId},
     });
 
     if (!item) {
       throw new NotFoundException('Inventory item not found');
     }
 
-    await this.prisma.inventoryItem.delete({ where: { id } });
-    return { message: 'Inventory item deleted successfully' };
+    await this.prisma.inventoryItem.delete({where: {id}});
+    return {message: 'Inventory item deleted successfully'};
   }
 
   async getLowStock(tenantId: string, threshold: number = 20) {
     const items = await this.prisma.inventoryItem.findMany({
       where: {
         tenantId,
-        quantity: { lte: Number(threshold) },
+        quantity: {lte: Number(threshold)},
       },
       include: {
         variant: {
-          include: { product: true },
+          include: {product: true},
         },
       },
       orderBy: {
@@ -329,7 +352,9 @@ export class InventoryService {
     return items.map((item) => ({
       ...item,
       itemName: item.variant?.product
-        ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
+        ? `${item.variant.product.name}${
+            item.variant.variantName ? ' - ' + item.variant.variantName : ''
+          }`
         : item.itemName,
       lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
       maxDiscount: item.maxDiscountRate,
@@ -354,7 +379,7 @@ export class InventoryService {
       },
       include: {
         variant: {
-          include: { product: true },
+          include: {product: true},
         },
       },
       orderBy: {
@@ -364,7 +389,9 @@ export class InventoryService {
     return items.map((item) => ({
       ...item,
       itemName: item.variant?.product
-        ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
+        ? `${item.variant.product.name}${
+            item.variant.variantName ? ' - ' + item.variant.variantName : ''
+          }`
         : item.itemName,
       lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
       maxDiscount: item.maxDiscountRate,
@@ -379,13 +406,15 @@ export class InventoryService {
         },
       },
       include: {
-        variant: { include: { product: true } },
+        variant: {include: {product: true}},
       },
     });
     return items.map((item) => ({
       ...item,
       itemName: item.variant?.product
-        ? `${item.variant.product.name}${item.variant.variantName ? ' - ' + item.variant.variantName : ''}`
+        ? `${item.variant.product.name}${
+            item.variant.variantName ? ' - ' + item.variant.variantName : ''
+          }`
         : item.itemName,
       lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
       maxDiscount: item.maxDiscountRate,

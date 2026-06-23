@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { jsPDF } from 'jspdf';
+import {Injectable} from '@nestjs/common';
+import {PrismaService} from '../../common/prisma/prisma.service';
+import {jsPDF} from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const PDF_FONT = {
@@ -19,7 +19,7 @@ export class PdfExportService {
    */
   async generateShortListPdf(tenantId: string): Promise<Buffer> {
     const items = await this.prisma.shortList.findMany({
-      where: { tenantId },
+      where: {tenantId},
       include: {
         inventory: {
           include: {
@@ -36,7 +36,7 @@ export class PdfExportService {
           },
         },
       },
-      orderBy: { inventory: { quantity: 'asc' } },
+      orderBy: {inventory: {quantity: 'asc'}},
     });
 
     const doc = new jsPDF();
@@ -98,14 +98,14 @@ export class PdfExportService {
       ],
       body: tableData,
       startY: margin + 20,
-      margin: { left: margin, right: margin },
+      margin: {left: margin, right: margin},
       theme: 'grid',
       columnStyles: {
-        0: { cellWidth: 40 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 30 },
+        0: {cellWidth: 40},
+        1: {cellWidth: 20},
+        2: {cellWidth: 30},
+        3: {cellWidth: 25},
+        4: {cellWidth: 30},
       },
       didDrawPage: (data) => {
         // Footer
@@ -119,7 +119,7 @@ export class PdfExportService {
           `Page ${data.pageNumber} of ${pageCount}`,
           pageWidth / 2,
           pageHeight - 10,
-          { align: 'center' },
+          {align: 'center'}
         );
       },
     });
@@ -132,7 +132,7 @@ export class PdfExportService {
    */
   async generateInventoryPdf(tenantId: string): Promise<Buffer> {
     const inventoryItems = await this.prisma.inventoryItem.findMany({
-      where: { tenantId },
+      where: {tenantId},
       include: {
         variant: {
           include: {
@@ -140,7 +140,7 @@ export class PdfExportService {
           },
         },
       },
-      orderBy: { quantity: 'asc' },
+      orderBy: {quantity: 'asc'},
       take: 1000,
     });
 
@@ -148,8 +148,8 @@ export class PdfExportService {
     const shortListIds = new Set(
       (
         await this.prisma.shortList.findMany({
-          where: { tenantId },
-          select: { inventoryId: true },
+          where: {tenantId},
+          select: {inventoryId: true},
         })
       ).map((item) => item.inventoryId)
     );
@@ -172,9 +172,7 @@ export class PdfExportService {
 
     // Summary stats
     const lowStockCount = inventoryItems.filter(
-      (item) =>
-        item.lastRestockQty &&
-        item.quantity < item.lastRestockQty / 2,
+      (item) => item.lastRestockQty && item.quantity < item.lastRestockQty / 2
     ).length;
     doc.setFontSize(10);
     doc.text(`Total Items: ${inventoryItems.length}`, margin, margin + 20);
@@ -214,16 +212,16 @@ export class PdfExportService {
       ],
       body: tableData,
       startY: margin + 35,
-      margin: { left: margin, right: margin },
+      margin: {left: margin, right: margin},
       theme: 'grid',
       columnStyles: {
-        0: { cellWidth: 40 },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 18 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 25 },
-        5: { cellWidth: 25 },
-        6: { cellWidth: 30 },
+        0: {cellWidth: 40},
+        1: {cellWidth: 25},
+        2: {cellWidth: 18},
+        3: {cellWidth: 25},
+        4: {cellWidth: 25},
+        5: {cellWidth: 25},
+        6: {cellWidth: 30},
       },
       didDrawPage: (data) => {
         const pageCount = doc.getNumberOfPages();
@@ -235,7 +233,7 @@ export class PdfExportService {
           `Page ${data.pageNumber} of ${pageCount}`,
           pageWidth / 2,
           pageHeight - 10,
-          { align: 'center' },
+          {align: 'center'}
         );
       },
     });
@@ -249,12 +247,12 @@ export class PdfExportService {
   async generateAnalyticsPdf(tenantId: string): Promise<Buffer> {
     const shortListStats = await this.prisma.shortList.groupBy({
       by: ['reason'],
-      where: { tenantId },
+      where: {tenantId},
       _count: true,
     });
 
     const slowItemsCount = await this.prisma.shortList.count({
-      where: { tenantId, isSlowItem: true },
+      where: {tenantId, isSlowItem: true},
     });
 
     const doc = new jsPDF();
@@ -281,7 +279,7 @@ export class PdfExportService {
 
     doc.setFontSize(10);
     const totalShortList = await this.prisma.shortList.count({
-      where: { tenantId },
+      where: {tenantId},
     });
     doc.text(`Total Items in Short List: ${totalShortList}`, margin + 5, yPos);
     yPos += 7;

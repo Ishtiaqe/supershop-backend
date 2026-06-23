@@ -1,27 +1,24 @@
 [
   {
-    "name": "delete-older-backend-images",
+    "name": "keep-latest-backend-image",
     "action": {
-      "type": "Delete"
+      "type": "KEEP"
     },
-    "condition": {
-      "tagState": "ANY",
+    "mostRecentVersions": {
+      "keepCount": 1,
       "packageNamePrefixes": [
         "supershop-backend/supershop-backend"
-      ],
-      "olderThan": "1d"
+      ]
     }
   },
   {
-    "name": "keep-latest-backend-image",
+    "name": "delete-old-images",
     "action": {
-      "type": "Keep"
+      "type": "DELETE"
     },
-    "mostRecentVersions": {
-      "packageNamePrefixes": [
-        "supershop-backend/supershop-backend"
-      ],
-      "keepCount": 1
+    "condition": {
+      "tagState": "ANY",
+      "olderThan": "1s"
     }
   }
 ]

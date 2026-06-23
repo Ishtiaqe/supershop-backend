@@ -90,7 +90,7 @@ export class DiscountValidator {
       throw new SalesValidationException(
         `Discount (${discount}%) exceeds maximum allowed (${maxAllowed}%)`,
         ErrorCode.SALE_DISCOUNT_EXCEEDS_MAXIMUM,
-        { requested: discount, maximum: maxAllowed }
+        {requested: discount, maximum: maxAllowed}
       );
     }
   }
@@ -108,7 +108,10 @@ export class DiscountValidator {
 
     if (profit < minProfit) {
       throw new SalesValidationException(
-        `Sale price results in insufficient profit. Minimum margin: ${minMarginPercent}%, Current: ${((profit / purchasePrice) * 100).toFixed(2)}%`,
+        `Sale price results in insufficient profit. Minimum margin: ${minMarginPercent}%, Current: ${(
+          (profit / purchasePrice) *
+          100
+        ).toFixed(2)}%`,
         ErrorCode.SALE_INSUFFICIENT_PROFIT_MARGIN,
         {
           salePrice,
@@ -141,15 +144,12 @@ export class QuantityValidator {
   /**
    * Validate sufficient stock available
    */
-  static validateSufficientStock(
-    available: number,
-    required: number
-  ): void {
+  static validateSufficientStock(available: number, required: number): void {
     if (available < required) {
       throw new SalesValidationException(
         `Insufficient stock. Available: ${available}, Required: ${required}`,
         ErrorCode.SALE_INSUFFICIENT_STOCK,
-        { available, required }
+        {available, required}
       );
     }
   }
@@ -183,10 +183,7 @@ export class NameValidator {
    */
   static validateSku(sku: string | undefined): void {
     if (!sku || sku.trim().length === 0) {
-      throw new BadRequestException(
-        'SKU is required',
-        ErrorCode.INVALID_INPUT
-      );
+      throw new BadRequestException('SKU is required', ErrorCode.INVALID_INPUT);
     }
 
     if (sku.length > 50) {
@@ -208,13 +205,13 @@ export class PaginationValidator {
   /**
    * Validate and normalize pagination parameters
    */
-  static validate(skip?: number, take?: number): { skip: number; take: number } {
+  static validate(skip?: number, take?: number): {skip: number; take: number} {
     const normalizedSkip = Math.max(skip || 0, 0);
     const normalizedTake = Math.min(
       Math.max(take || 20, this.MIN_PAGE_SIZE),
       this.MAX_PAGE_SIZE
     );
 
-    return { skip: normalizedSkip, take: normalizedTake };
+    return {skip: normalizedSkip, take: normalizedTake};
   }
 }

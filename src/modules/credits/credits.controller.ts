@@ -1,12 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserRole } from '../auth/dto/auth.dto';
-import { CreditsService } from './credits.service';
-import { CreateCreditPaymentDto } from './dto/credits.dto';
+import {Body, Controller, Get, Param, Post, UseGuards} from '@nestjs/common';
+import {ApiBearerAuth, ApiTags} from '@nestjs/swagger';
+import {JwtAuthGuard} from '../auth/guards/jwt-auth.guard';
+import {RolesGuard} from '../auth/guards/roles.guard';
+import {Roles} from '../auth/decorators/roles.decorator';
+import {CurrentUser} from '../auth/decorators/current-user.decorator';
+import {UserRole} from '../auth/dto/auth.dto';
+import {CreditsService} from './credits.service';
+import {CreateCreditPaymentDto} from './dto/credits.dto';
 
 @ApiTags('Credits')
 @ApiBearerAuth()
@@ -38,8 +38,13 @@ export class CreditsController {
   recordPayment(
     @CurrentUser() user: any,
     @Param('saleId') saleId: string,
-    @Body() dto: CreateCreditPaymentDto,
+    @Body() dto: CreateCreditPaymentDto
   ) {
-    return this.creditsService.recordPayment(user.tenantId, user.id, saleId, dto);
+    return this.creditsService.recordPayment(
+      user.tenantId,
+      user.id,
+      saleId,
+      dto
+    );
   }
 }

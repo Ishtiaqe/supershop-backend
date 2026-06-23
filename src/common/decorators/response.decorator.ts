@@ -87,7 +87,7 @@ export function StandardResponse() {
     descriptor.value = async function (...args: any[]) {
       try {
         const result = await originalMethod.apply(this, args);
-        
+
         // If result is already standardized, return as-is
         if (result && typeof result === 'object' && 'success' in result) {
           return result;
@@ -98,7 +98,11 @@ export function StandardResponse() {
       } catch (error) {
         const statusCode = error.status || 500;
         const message = error.message || 'Internal server error';
-        throw ResponseHelper.error(message, error.response?.data?.message, statusCode);
+        throw ResponseHelper.error(
+          message,
+          error.response?.data?.message,
+          statusCode
+        );
       }
     };
 

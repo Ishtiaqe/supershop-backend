@@ -1,5 +1,12 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsDateString, IsUUID } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsDateString,
+  IsUUID,
+} from 'class-validator';
+import {Type} from 'class-transformer';
 
 export class CreateExpenseCategoryDto {
   @IsString()
