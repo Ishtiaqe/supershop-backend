@@ -230,19 +230,22 @@ export class SalesService {
     };
   }
 
-  async getOverallStatistics(tenantId: string) {
-    const sales = await this.prisma.sale.findMany({
-      where: {tenantId},
+  async getOverallStatistics(tenantId: string, startDate?: Date) {
+    const where: any = {tenantId};
+    if (startDate) {
+      where.saleTime = {gte: startDate};
+    }
+
+    const result = await this.prisma.sale.aggregate({
+      where,
+      _count: true,
+      _sum: {totalAmount: true, totalProfit: true},
     });
 
-    const ordersCount = sales.length;
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-    const totalProfit = sales.reduce((sum, sale) => sum + sale.totalProfit, 0);
-
     return {
-      ordersCount,
-      totalRevenue,
-      totalProfit,
+      ordersCount: result._count,
+      totalRevenue: result._sum.totalAmount ?? 0,
+      totalProfit: result._sum.totalProfit ?? 0,
     };
   }
 

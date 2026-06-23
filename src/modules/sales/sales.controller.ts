@@ -75,21 +75,36 @@ export class SalesController {
   @ApiOperation({
     summary: 'Get analytics summary (orders, revenue, profit, asset value)',
   })
-  async getAnalyticsSummary(@CurrentUser() user: any) {
+  async getAnalyticsSummary(
+    @CurrentUser() user: any,
+    @Query('period') period?: string
+  ) {
     const tenant = user.tenantId;
+    const cacheKey = `${tenant}:${period ?? 'all_time'}`;
     const now = Date.now();
     const TTL = 30 * 1000; // 30 seconds
 
-    const cacheEntry = SalesController.summaryCache[tenant];
+    const cacheEntry = SalesController.summaryCache[cacheKey];
     if (cacheEntry && now - cacheEntry.cachedAt < TTL) {
       return cacheEntry.data;
     }
 
-    const stats = await this.salesService.getOverallStatistics(tenant);
+    let startDate: Date | undefined;
+    if (period === 'this_month') {
+      startDate = new Date();
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (period === 'last_30') {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    const stats = await this.salesService.getOverallStatistics(tenant, startDate);
     const asset = await this.salesService.getAssetValue(tenant);
 
     const response = {...stats, ...asset};
-    SalesController.summaryCache[tenant] = {cachedAt: now, data: response};
+    SalesController.summaryCache[cacheKey] = {cachedAt: now, data: response};
     return response;
   }
 
