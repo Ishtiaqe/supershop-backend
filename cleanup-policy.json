@@ -18,7 +18,10 @@
     },
     "condition": {
       "tagState": "ANY",
-      "olderThan": "1s"
+      "olderThan": "604800s",
+      "packageNamePrefixes": [
+        "supershop-backend/supershop-backend"
+      ]
     }
   }
 ]
