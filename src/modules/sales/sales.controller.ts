@@ -104,6 +104,10 @@ export class SalesController {
     const asset = await this.salesService.getAssetValue(tenant);
 
     const response = {...stats, ...asset};
+    // MINOR 14: Prevent cache from growing unbounded
+    if (Object.keys(SalesController.summaryCache).length > 1000) {
+      SalesController.summaryCache = {};
+    }
     SalesController.summaryCache[cacheKey] = {cachedAt: now, data: response};
     return response;
   }
