@@ -138,6 +138,10 @@ export class BackupService {
     }
 
     const data = backup.data ?? {};
+    const categories: any[] = Array.isArray(data.categories)
+      ? data.categories
+      : [];
+    const brands: any[] = Array.isArray(data.brands) ? data.brands : [];
     const products: any[] = Array.isArray(data.products) ? data.products : [];
     const variants: any[] = Array.isArray(data.variants) ? data.variants : [];
     const inventory: any[] = Array.isArray(data.inventory)
@@ -166,6 +170,21 @@ export class BackupService {
       select: {id: true},
     });
     const tenantUserIds = new Set(tenantUsers.map((u) => u.id));
+
+    // Categories and brands must be restored before products (FK parents)
+    const categoryIds = new Set<string>();
+    const cleanCategories = categories.map((c) => {
+      const {tenant, products: _products, ...rest} = c;
+      categoryIds.add(rest.id);
+      return {...rest, tenantId};
+    });
+
+    const brandIds = new Set<string>();
+    const cleanBrands = brands.map((b) => {
+      const {tenant, products: _products, ...rest} = b;
+      brandIds.add(rest.id);
+      return {...rest, tenantId};
+    });
 
     const productIds = new Set<string>();
     const cleanProducts = products.map((p) => {
@@ -278,7 +297,8 @@ export class BackupService {
       });
 
     this.logger.log(
-      `Restoring tenant ${tenantId}: ${cleanProducts.length} products, ${cleanVariants.length} variants, ` +
+      `Restoring tenant ${tenantId}: ${cleanCategories.length} categories, ${cleanBrands.length} brands, ` +
+        `${cleanProducts.length} products, ${cleanVariants.length} variants, ` +
         `${cleanInventory.length} inventory items, ${cleanSales.length} sales, ${cleanSaleItems.length} sale items, ` +
         `${cleanShortList.length} short-list entries, ${cleanExpenseCategories.length} expense categories, ` +
         `${cleanExpenses.length} expenses, ${cleanCashBoxEntries.length} cash box entries, ` +
@@ -292,6 +312,19 @@ export class BackupService {
           await this.deleteTenantDataInTransaction(tx, tenantId);
 
           // Recreate, parents before children
+          // Categories and brands are FK parents of products — restore them first.
+          if (cleanCategories.length) {
+            await tx.category.createMany({
+              data: cleanCategories,
+              skipDuplicates: true,
+            });
+          }
+          if (cleanBrands.length) {
+            await tx.brand.createMany({
+              data: cleanBrands,
+              skipDuplicates: true,
+            });
+          }
           if (cleanProducts.length) {
             await tx.product.createMany({data: cleanProducts});
           }
@@ -327,6 +360,8 @@ export class BackupService {
           }
 
           return {
+            categories: cleanCategories.length,
+            brands: cleanBrands.length,
             products: cleanProducts.length,
             variants: cleanVariants.length,
             inventory: cleanInventory.length,
@@ -371,6 +406,9 @@ export class BackupService {
     await tx.inventoryItem.deleteMany({where: {tenantId}});
     await tx.productVariant.deleteMany({where: {tenantId}});
     await tx.product.deleteMany({where: {tenantId}});
+    // Categories and brands are FK parents of products; delete after products.
+    await tx.category.deleteMany({where: {tenantId}});
+    await tx.brand.deleteMany({where: {tenantId}});
     await tx.expenseCategory.deleteMany({where: {tenantId}});
   }
 
@@ -384,9 +422,20 @@ export class BackupService {
     deleted: Record<string, number>;
   }> {
     const before = await this.getBackupStatus(tenantId);
-    const [shortListCount, saleItemCount] = await Promise.all([
+    const [
+      shortListCount,
+      saleItemCount,
+      expensesCount,
+      expenseCategoriesCount,
+      cashBoxEntriesCount,
+      creditPaymentsCount,
+    ] = await Promise.all([
       this.prisma.shortList.count({where: {tenantId}}),
       this.prisma.saleItem.count({where: {sale: {tenantId}}}),
+      this.prisma.expense.count({where: {tenantId}}),
+      this.prisma.expenseCategory.count({where: {tenantId}}),
+      this.prisma.cashBoxEntry.count({where: {tenantId}}),
+      this.prisma.creditPayment.count({where: {tenantId}}),
     ]);
 
     try {
@@ -407,6 +456,10 @@ export class BackupService {
           sales: before.saleCount,
           saleItems: saleItemCount,
           shortList: shortListCount,
+          expenses: expensesCount,
+          expenseCategories: expenseCategoriesCount,
+          cashBoxEntries: cashBoxEntriesCount,
+          creditPayments: creditPaymentsCount,
         },
       };
     } catch (error) {
