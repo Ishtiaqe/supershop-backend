@@ -15,7 +15,7 @@ export class SalesService {
   async create(tenantId: string, employeeId: string, data: any) {
     const {items, ...saleData} = data;
 
-    // Validate CREDIT sales
+    // Validate CREDIT sales basic fields
     if (saleData.paymentMethod === 'CREDIT') {
       if (!saleData.customerName?.trim() || !saleData.customerPhone?.trim()) {
         throw new BadRequestException(
@@ -92,6 +92,14 @@ export class SalesService {
       totalAmount -= (totalAmount * saleData.discountValue) / 100;
     } else if (saleData.discountType === 'fixed') {
       totalAmount -= saleData.discountValue;
+    }
+
+    // Validate amountPaid does not exceed totalAmount (MINOR 10)
+    if (saleData.paymentMethod === 'CREDIT') {
+      const paid = saleData.amountPaid ?? 0;
+      if (paid > totalAmount) {
+        throw new BadRequestException('amountPaid cannot exceed totalAmount');
+      }
     }
 
     // Create sale with items
