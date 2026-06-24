@@ -229,49 +229,14 @@ export class InventoryService {
         // Cash box integration based on fundSource
         if (fundSource && result.purchasePrice && result.lastRestockQty) {
           const totalCost = result.purchasePrice * result.lastRestockQty;
-          try {
-            if (fundSource === 'CASH_BOX') {
-              await this.cashBoxService.createEntry(tenantId, userId, {
-                entryType: 'INVENTORY_OUT' as any,
-                amount: totalCost,
-                note: `Stock purchase: ${result.itemName || 'item'}`,
-                referenceId: result.id,
-              });
-            } else if (fundSource === 'NEW_INVESTMENT') {
-              await this.cashBoxService.createEntry(tenantId, userId, {
-                entryType: 'NEW_INVESTMENT_IN' as any,
-                amount: totalCost,
-                note: `New investment for: ${result.itemName || 'item'}`,
-                referenceId: result.id,
-              });
-              await this.cashBoxService.createEntry(tenantId, userId, {
-                entryType: 'INVENTORY_OUT' as any,
-                amount: totalCost,
-                note: `Stock purchase (new investment): ${
-                  result.itemName || 'item'
-                }`,
-                referenceId: result.id,
-              });
-            } else if (fundSource === 'LOAN') {
-              await this.cashBoxService.createEntry(tenantId, userId, {
-                entryType: 'LOAN_IN' as any,
-                amount: totalCost,
-                note: `Loan for stock: ${result.itemName || 'item'}`,
-                referenceId: result.id,
-              });
-              await this.cashBoxService.createEntry(tenantId, userId, {
-                entryType: 'INVENTORY_OUT' as any,
-                amount: totalCost,
-                note: `Stock purchase (loan): ${result.itemName || 'item'}`,
-                referenceId: result.id,
-              });
-            }
-          } catch (err: any) {
-            console.error(
-              '[CashBox] Failed to create inventory cashbox entry:',
-              err?.message
-            );
-          }
+          await this.createFundSourceEntries(
+            tenantId,
+            userId,
+            fundSource,
+            totalCost,
+            result.itemName || 'item',
+            result.id
+          );
         }
 
         // Auto-remove from shortlist on restock
@@ -311,49 +276,14 @@ export class InventoryService {
     // Cash box integration based on fundSource
     if (fundSource && result.purchasePrice && result.quantity) {
       const totalCost = result.purchasePrice * result.quantity;
-      try {
-        if (fundSource === 'CASH_BOX') {
-          await this.cashBoxService.createEntry(tenantId, userId, {
-            entryType: 'INVENTORY_OUT' as any,
-            amount: totalCost,
-            note: `Stock purchase: ${result.itemName || 'item'}`,
-            referenceId: result.id,
-          });
-        } else if (fundSource === 'NEW_INVESTMENT') {
-          await this.cashBoxService.createEntry(tenantId, userId, {
-            entryType: 'NEW_INVESTMENT_IN' as any,
-            amount: totalCost,
-            note: `New investment for: ${result.itemName || 'item'}`,
-            referenceId: result.id,
-          });
-          await this.cashBoxService.createEntry(tenantId, userId, {
-            entryType: 'INVENTORY_OUT' as any,
-            amount: totalCost,
-            note: `Stock purchase (new investment): ${
-              result.itemName || 'item'
-            }`,
-            referenceId: result.id,
-          });
-        } else if (fundSource === 'LOAN') {
-          await this.cashBoxService.createEntry(tenantId, userId, {
-            entryType: 'LOAN_IN' as any,
-            amount: totalCost,
-            note: `Loan for stock: ${result.itemName || 'item'}`,
-            referenceId: result.id,
-          });
-          await this.cashBoxService.createEntry(tenantId, userId, {
-            entryType: 'INVENTORY_OUT' as any,
-            amount: totalCost,
-            note: `Stock purchase (loan): ${result.itemName || 'item'}`,
-            referenceId: result.id,
-          });
-        }
-      } catch (err: any) {
-        console.error(
-          '[CashBox] Failed to create inventory cashbox entry:',
-          err?.message
-        );
-      }
+      await this.createFundSourceEntries(
+        tenantId,
+        userId,
+        fundSource,
+        totalCost,
+        result.itemName || 'item',
+        result.id
+      );
     }
 
     // Auto-remove from shortlist on creation
@@ -541,5 +471,62 @@ export class InventoryService {
       lastRestockQty: item.lastRestockQty ?? item.quantity, // Backward compatibility: default to current quantity
       maxDiscount: item.maxDiscountRate,
     }));
+  }
+
+  /**
+   * Creates cash-box entries for an inventory purchase based on the fund source.
+   * Extracted to avoid duplication between the restock-merge path and the
+   * new-item path in create(). Any future fundSource values only need to be
+   * added here.
+   */
+  private async createFundSourceEntries(
+    tenantId: string,
+    userId: string,
+    fundSource: string,
+    totalCost: number,
+    itemName: string,
+    itemId: string
+  ): Promise<void> {
+    try {
+      if (fundSource === 'CASH_BOX') {
+        await this.cashBoxService.createEntry(tenantId, userId, {
+          entryType: 'INVENTORY_OUT' as any,
+          amount: totalCost,
+          note: `Stock purchase: ${itemName}`,
+          referenceId: itemId,
+        });
+      } else if (fundSource === 'NEW_INVESTMENT') {
+        await this.cashBoxService.createEntry(tenantId, userId, {
+          entryType: 'NEW_INVESTMENT_IN' as any,
+          amount: totalCost,
+          note: `New investment for: ${itemName}`,
+          referenceId: itemId,
+        });
+        await this.cashBoxService.createEntry(tenantId, userId, {
+          entryType: 'INVENTORY_OUT' as any,
+          amount: totalCost,
+          note: `Stock purchase (new investment): ${itemName}`,
+          referenceId: itemId,
+        });
+      } else if (fundSource === 'LOAN') {
+        await this.cashBoxService.createEntry(tenantId, userId, {
+          entryType: 'LOAN_IN' as any,
+          amount: totalCost,
+          note: `Loan for stock: ${itemName}`,
+          referenceId: itemId,
+        });
+        await this.cashBoxService.createEntry(tenantId, userId, {
+          entryType: 'INVENTORY_OUT' as any,
+          amount: totalCost,
+          note: `Stock purchase (loan): ${itemName}`,
+          referenceId: itemId,
+        });
+      }
+    } catch (err: any) {
+      console.error(
+        '[CashBox] Failed to create inventory cashbox entry:',
+        err?.message
+      );
+    }
   }
 }
