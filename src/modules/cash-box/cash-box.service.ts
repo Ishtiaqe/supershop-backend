@@ -101,7 +101,12 @@ export class CashBoxService {
         where: {
           ...where,
           entryType: {
-            in: [CashBoxEntryType.SALE_IN, CashBoxEntryType.MANUAL_IN],
+            in: [
+              CashBoxEntryType.SALE_IN,
+              CashBoxEntryType.MANUAL_IN,
+              CashBoxEntryType.NEW_INVESTMENT_IN,
+              CashBoxEntryType.LOAN_IN,
+            ],
           },
         },
         _sum: {amount: true},
@@ -110,7 +115,11 @@ export class CashBoxService {
         where: {
           ...where,
           entryType: {
-            in: [CashBoxEntryType.EXPENSE_OUT, CashBoxEntryType.MANUAL_OUT],
+            in: [
+              CashBoxEntryType.EXPENSE_OUT,
+              CashBoxEntryType.MANUAL_OUT,
+              CashBoxEntryType.INVENTORY_OUT,
+            ],
           },
         },
         _sum: {amount: true},
@@ -123,7 +132,12 @@ export class CashBoxService {
         where: {
           tenantId,
           entryType: {
-            in: [CashBoxEntryType.SALE_IN, CashBoxEntryType.MANUAL_IN],
+            in: [
+              CashBoxEntryType.SALE_IN,
+              CashBoxEntryType.MANUAL_IN,
+              CashBoxEntryType.NEW_INVESTMENT_IN,
+              CashBoxEntryType.LOAN_IN,
+            ],
           },
         },
         _sum: {amount: true},
@@ -132,7 +146,11 @@ export class CashBoxService {
         where: {
           tenantId,
           entryType: {
-            in: [CashBoxEntryType.EXPENSE_OUT, CashBoxEntryType.MANUAL_OUT],
+            in: [
+              CashBoxEntryType.EXPENSE_OUT,
+              CashBoxEntryType.MANUAL_OUT,
+              CashBoxEntryType.INVENTORY_OUT,
+            ],
           },
         },
         _sum: {amount: true},
