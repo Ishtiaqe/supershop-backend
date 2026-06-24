@@ -14,6 +14,7 @@ const mockPrisma = {
   creditPayment: {
     create: jest.fn(),
   },
+  $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
 };
 
 const mockCashBox = {

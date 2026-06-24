@@ -86,23 +86,24 @@ export class CreditsService {
     if (dto.amount > (sale.dueAmount ?? 0))
       throw new BadRequestException('Payment exceeds outstanding due');
 
-    const payment = await this.prisma.creditPayment.create({
-      data: {
-        tenantId,
-        saleId,
-        amount: dto.amount,
-        note: dto.note,
-        createdById: userId,
-      },
-    });
-
-    await this.prisma.sale.update({
-      where: {id: saleId},
-      data: {
-        dueAmount: Math.max(0, (sale.dueAmount ?? 0) - dto.amount),
-        amountPaid: (sale.amountPaid ?? 0) + dto.amount,
-      },
-    });
+    const [payment] = await this.prisma.$transaction([
+      this.prisma.creditPayment.create({
+        data: {
+          tenantId,
+          saleId,
+          amount: dto.amount,
+          note: dto.note,
+          createdById: userId,
+        },
+      }),
+      this.prisma.sale.update({
+        where: {id: saleId},
+        data: {
+          dueAmount: Math.max(0, (sale.dueAmount ?? 0) - dto.amount),
+          amountPaid: (sale.amountPaid ?? 0) + dto.amount,
+        },
+      }),
+    ]);
 
     try {
       await this.cashBoxService.createEntry(tenantId, userId, {
