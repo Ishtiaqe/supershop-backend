@@ -21,12 +21,17 @@ export class CreditsController {
     return this.creditsService.getCreditCustomers(user.tenantId);
   }
 
+  // ROUTE ORDER DEPENDENCY: @Get('summary') MUST be declared before @Get(':phone').
+  // NestJS matches routes in declaration order; if ':phone' comes first, a request
+  // to GET /credits/summary will be captured by the ':phone' handler and
+  // treated as a phone lookup for "summary" instead of the summary endpoint.
   @Get('summary')
   @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
   getSummary(@CurrentUser() user: any) {
     return this.creditsService.getCreditSummary(user.tenantId);
   }
 
+  // See route order note above — keep this after 'summary'.
   @Get(':phone')
   @Roles(UserRole.OWNER, UserRole.EMPLOYEE)
   getCreditsByPhone(@CurrentUser() user: any, @Param('phone') phone: string) {
