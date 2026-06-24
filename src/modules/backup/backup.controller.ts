@@ -10,6 +10,7 @@ import {
   Response,
   Logger,
   Param,
+  Body,
 } from '@nestjs/common';
 import {FileInterceptor} from '@nestjs/platform-express';
 import {Response as ExpressResponse} from 'express';
@@ -124,7 +125,13 @@ export class BackupController {
 
   @Delete('data')
   @Roles(UserRole.OWNER)
-  async deleteTenantData(@CurrentUser() user: any) {
+  async deleteTenantData(@CurrentUser() user: any, @Body() body: any) {
+    // MINOR 12: Require explicit confirmation to prevent accidental/CSRF deletion
+    if (body?.confirm !== 'DELETE_ALL_DATA') {
+      throw new BadRequestException(
+        'Confirmation token invalid. Send { confirm: "DELETE_ALL_DATA" } to confirm deletion.'
+      );
+    }
     this.logger.warn(
       `User ${user.id} (tenantId: ${user.tenantId}) requesting deletion of all shop data`
     );
