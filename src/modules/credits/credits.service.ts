@@ -23,7 +23,11 @@ export class CreditsService {
 
     const customerMap = new Map<string, any>();
     for (const sale of creditSales) {
-      const key = sale.customerPhone || 'unknown';
+      // MINOR 11: Skip sales with null phone to avoid merging unrelated customers
+      if (!sale.customerPhone) {
+        continue;
+      }
+      const key = sale.customerPhone;
       if (!customerMap.has(key)) {
         customerMap.set(key, {
           customerName: sale.customerName,
