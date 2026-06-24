@@ -32,11 +32,13 @@ export class SalesService {
     let totalProfit = 0;
 
     for (const item of items) {
-      const inventory = await this.prisma.inventoryItem.findUnique({
-        where: {id: item.inventoryId},
+      // Defence-in-depth: use findFirst with tenantId to avoid cross-tenant access
+      // even if the manual tenantId check below were ever removed.
+      const inventory = await this.prisma.inventoryItem.findFirst({
+        where: {id: item.inventoryId, tenantId},
       });
 
-      if (!inventory || inventory.tenantId !== tenantId) {
+      if (!inventory) {
         throw new BadRequestException('Invalid inventory item');
       }
 
