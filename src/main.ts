@@ -33,7 +33,7 @@ async function bootstrap() {
     ];
     corsOrigins = Array.from(new Set([...corsOrigins, ...devOrigins]));
   }
-  // For development, allow any localhost origin on any port for convenience (e.g. 3000/3001).
+  // For development, allow any localhost origin on any port for convenience.
   // In production, only allow exact origins listed in CORS_ORIGIN.
   if (
     (process.env.NODE_ENV || configService.get('NODE_ENV')) === 'development'

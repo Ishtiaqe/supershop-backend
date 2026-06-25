@@ -262,15 +262,20 @@ export class SalesService {
   async getAssetValue(tenantId: string) {
     const items = await this.prisma.inventoryItem.findMany({
       where: {tenantId},
-      select: {quantity: true, purchasePrice: true},
+      select: {quantity: true, purchasePrice: true, retailPrice: true},
     });
 
     const totalAssetValue = items.reduce(
       (sum, item) => sum + item.quantity * item.purchasePrice,
       0
     );
+    const totalInventorySellingValue = items.reduce(
+      (sum, item) => sum + item.quantity * item.retailPrice,
+      0
+    );
 
-    return {totalAssetValue};
+    // totalAssetValue kept for back-compat; it is current stock at purchase price
+    return {totalAssetValue, totalInventorySellingValue};
   }
 
   async getGraphData(tenantId: string, period: string = '30d') {

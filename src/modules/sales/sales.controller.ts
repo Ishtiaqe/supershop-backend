@@ -94,11 +94,20 @@ export class SalesController {
       startDate = new Date();
       startDate.setDate(1);
       startDate.setHours(0, 0, 0, 0);
-    } else if (period === 'last_30') {
+    } else if (period === 'last_30' || period === '30d') {
       startDate = new Date();
       startDate.setDate(startDate.getDate() - 30);
       startDate.setHours(0, 0, 0, 0);
+    } else if (period === '7d') {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (period === '90d') {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 90);
+      startDate.setHours(0, 0, 0, 0);
     }
+    // 'all_time' / undefined → no startDate filter
 
     const stats = await this.salesService.getOverallStatistics(tenant, startDate);
     const asset = await this.salesService.getAssetValue(tenant);
