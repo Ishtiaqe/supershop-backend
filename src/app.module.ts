@@ -4,7 +4,6 @@ import {join} from 'path';
 import {ConfigModule} from '@nestjs/config';
 import {ThrottlerModule} from '@nestjs/throttler';
 import {PrismaModule} from './common/prisma/prisma.module';
-import {HealthModule} from './common/health/health.module';
 import {AuthModule} from './modules/auth/auth.module';
 import {UsersModule} from './modules/users/users.module';
 import {TenantsModule} from './modules/tenants/tenants.module';
@@ -34,7 +33,6 @@ import {CreditsModule} from './modules/credits/credits.module';
       },
     ]),
     PrismaModule,
-    HealthModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'img'),
       serveRoot: '/img',
